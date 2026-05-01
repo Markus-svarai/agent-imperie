@@ -52,6 +52,9 @@ import {
   atlasTekniskResearch, siloByggerKunnskapsbase, siloLoggBeslutning,
 } from "@/lib/inngest/functions/research";
 
+// Notifications
+import { dailyDigest } from "@/lib/inngest/functions/notifications";
+
 export const { GET, POST, PUT } = serve({
   client: inngest,
   functions: [
@@ -90,5 +93,8 @@ export const { GET, POST, PUT } = serve({
     // ── Research ─────────────────────────────────────────────────────────
     darwinProductBrief, darwinAnalyserFeedback,
     atlasTekniskResearch, siloByggerKunnskapsbase, siloLoggBeslutning,
+
+    // ── Notifications ─────────────────────────────────────────────────────
+    dailyDigest,
   ],
 });

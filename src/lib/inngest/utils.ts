@@ -2,6 +2,7 @@ import { db, schema } from "@/lib/db";
 import { eq } from "drizzle-orm";
 import { DEFAULT_ORG_ID } from "@/lib/db/constants";
 import type { AgentContext, AgentOutput } from "@/lib/agents/types";
+import { notifySlack, runCompletedMessage, anomalyMessage } from "@/lib/notify/slack";
 
 /** Convert full model string → cost tier */
 function modelToCost(model: string): { input: number; output: number } {
@@ -54,6 +55,8 @@ export function makeCtx(agentId: string) {
       const costMicroUsd = inputTokens * rate.input + outputTokens * rate.output;
 
       const endedAt = new Date();
+      const durationMs = endedAt.getTime() - startedAt.getTime();
+
       await db.insert(schema.agentRuns).values({
         orgId: DEFAULT_ORG_ID,
         agentId: agentRecord.id,
@@ -63,11 +66,28 @@ export function makeCtx(agentId: string) {
         output: { summary: output.summary },
         startedAt,
         endedAt,
-        durationMs: endedAt.getTime() - startedAt.getTime(),
+        durationMs,
         inputTokens,
         outputTokens,
         costMicroUsd,
       });
+
+      // Slack: notify on manual triggers always, or when anomaly detected
+      const summary = output.summary ?? "";
+      const isAnomaly =
+        summary.includes("⚠️") ||
+        summary.toLowerCase().includes("anomali") ||
+        summary.toLowerCase().includes("kritisk");
+
+      if (trigger === "manual") {
+        const agentName = agentId.charAt(0).toUpperCase() + agentId.slice(1);
+        const msg = runCompletedMessage(agentName, durationMs, inputTokens, outputTokens, summary, trigger);
+        void notifySlack(msg.text, msg.blocks);
+      } else if (isAnomaly) {
+        const agentName = agentId.charAt(0).toUpperCase() + agentId.slice(1);
+        const msg = anomalyMessage(agentName, summary);
+        void notifySlack(msg.text, msg.blocks);
+      }
     } catch (err) {
       console.error("[persistRun] Failed:", err);
     }
