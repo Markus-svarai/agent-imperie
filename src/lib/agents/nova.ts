@@ -22,20 +22,33 @@ Målet er å få 2-3 klinikker til å teste SvarAI gratis som pilotpartnere.
 Pilotklinikker får produktet 100% kostnadsfritt i bytte mot tilbakemeldinger og én referanse.
 Dette er IKKE et salgspitch om pris — det er en invitasjon til å forme produktet sammen med oss.
 
-## Din jobb
-Finn og kvalifiser klinikker som kan bli pilotpartnere.
+## ICP (Ideal Customer Profile)
 
-ICP (Ideal Customer Profile):
-- Klinikktype: tannlege, lege, hudklinikk, fysioterapi, psykolog
-- Geografi: start alltid med Moss og Østfold (Moss, Fredrikstad, Sarpsborg, Halden, Råde, Rygge), deretter Oslo og resten av Norge
-- Størrelse: 1-20 ansatte
-- Smertepunkt: mangler resepsjonist, mister pasienter, høy no-show rate
+**Klinikktyper som passer best:**
+- Fysioterapi — behandler pasienter hele dagen, svarer telefon mellom behandlinger, mister mange samtaler
+- Psykolog / psykiatrisk klinikk — ofte solopraktiker, ingen resepsjonist, sensitiv booking
+- Hudklinikk / estetisk klinikk — høy no-show rate, dyr tid, trenger påminnelser
+- Kiropraktor / osteopat / naprapat — travle behandlere, høy telefontrafikk
+- Tverrfaglige klinikker (fysio + psykolog + ernæring etc.) — mange behandlere, kompleks bookingflyt
 
-Når du kaller search_clinics-verktøyet, analyser resultatene og:
-1. Identifiser spesifikke klinikker med navn og nettside
-2. Vurder fit-score (1-10) basert på ICP
-3. Identifiser sannsynlig smertepunkt
-4. Beskriv inngangsvinkel for Hermes: fokus på pilotinvitasjon, ikke salg
+**Klinikktyper som IKKE passer:**
+- Tannklinikk — har allerede dedikerte booking-systemer (Opus Dental, Dentware) og resepsjonist
+- Sykehus / legekontor med kommunal avtale — for stor, feil kjøpsprosess
+
+**Geografi — prioritert rekkefølge:**
+1. Moss og nærmeste Østfold: Moss, Råde, Rygge, Vestby (nærme nok til IRL-møte)
+2. Østfold ellers: Fredrikstad, Sarpsborg, Halden, Askim
+3. Oslo og omegn
+4. Resten av Norge
+
+**Størrelse:** 1-10 behandlere
+**Smertepunkt:** svarer telefonen mellom pasienter, mister samtaler, høy no-show
+
+## Slik jobber du
+1. Kall get_pipeline_stats — vis status øverst
+2. Søk etter klinikker med search_clinics — start alltid med Moss/Østfold
+3. Analyser resultatene og vurder fit-score (1-10)
+4. Beskriv inngangsvinkel: er klinikken nær Moss? (→ foreslå innom-besøk)
 5. Kall store_lead for hvert kvalifisert prospekt (fit-score ≥ 6)
 
 Skriv på norsk. Vær konkret — ekte klinikknavn, ekte byer, ekte smertepunkter.`,
@@ -54,7 +67,7 @@ Skriv på norsk. Vær konkret — ekte klinikknavn, ekte byer, ekte smertepunkte
           properties: {
             specialty: {
               type: "string",
-              description: "Klinikktype: tannlege, lege, hudklinikk, fysioterapi, psykolog",
+              description: "Klinikktype: fysioterapi, psykolog, hudklinikk, kiropraktor, tverrfaglig",
             },
             location: {
               type: "string",
@@ -81,7 +94,7 @@ Skriv på norsk. Vær konkret — ekte klinikknavn, ekte byer, ekte smertepunkte
             email: { type: "string", description: "Kontakt-e-post hvis funnet" },
             fitScore: { type: "number", description: "Fit-score 1-10" },
             painPoint: { type: "string", description: "Antatt smertepunkt" },
-            approachAngle: { type: "string", description: "Anbefalt inngangsvinkel for pilotinvitasjon" },
+            approachAngle: { type: "string", description: "Anbefalt inngangsvinkel — inkluder om de er nær nok til IRL-møte" },
           },
           required: ["companyName", "specialty", "location", "fitScore", "painPoint", "approachAngle"],
         },
