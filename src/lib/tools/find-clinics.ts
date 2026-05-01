@@ -93,3 +93,50 @@ export async function getNewLeads(limit = 10) {
     limit,
   });
 }
+
+/**
+ * Pipeline stats — brukes av alle salgsagenter for å starte med riktig kontekst.
+ * Returnerer formatert tekststreng klar til å injiseres i agent-rapporter.
+ */
+export async function getPipelineStats(): Promise<string> {
+  const allLeads = await db.query.leads.findMany({
+    where: eq(schema.leads.orgId, DEFAULT_ORG_ID),
+  });
+
+  if (allLeads.length === 0) {
+    return `📊 PIPELINE-STATUS (${new Date().toLocaleDateString("nb-NO")}):
+Totalt: 0 leads i databasen
+Status: Pre-pipeline — ingen leads registrert ennå
+Fase: Tidlig pilot — søker etter de første 2-3 testklinikker`;
+  }
+
+  const byStatus = allLeads.reduce<Record<string, number>>((acc, lead) => {
+    acc[lead.status] = (acc[lead.status] ?? 0) + 1;
+    return acc;
+  }, {});
+
+  const customers = byStatus["customer"] ?? 0;
+  const demoBooked = byStatus["demo_booked"] ?? 0;
+  const interested = byStatus["interested"] ?? 0;
+  const replied = byStatus["replied"] ?? 0;
+  const contacted = byStatus["contacted"] ?? 0;
+  const newLeads = byStatus["new"] ?? 0;
+  const notInterested = byStatus["not_interested"] ?? 0;
+
+  const lines = [
+    `📊 PIPELINE-STATUS (${new Date().toLocaleDateString("nb-NO")}):`,
+    `Totalt: ${allLeads.length} leads`,
+    customers > 0 ? `✅ Kunder (pilot aktiv): ${customers}` : `✅ Kunder: 0 — søker første pilotkllinikk`,
+    demoBooked > 0 ? `🗓️  Demo booket: ${demoBooked}` : null,
+    interested > 0 ? `🔥 Interesserte: ${interested}` : null,
+    replied > 0 ? `💬 Svart: ${replied}` : null,
+    contacted > 0 ? `📧 Kontaktet: ${contacted}` : null,
+    newLeads > 0 ? `🆕 Nye (ikke kontaktet): ${newLeads}` : null,
+    notInterested > 0 ? `❌ Ikke interessert: ${notInterested}` : null,
+    customers === 0
+      ? `\n🎯 MÅL: Få inn 2-3 pilotklinikker som tester SvarAI gratis`
+      : `\n🎯 MÅL: Konvertere piloter til betalende kunder`,
+  ].filter(Boolean).join("\n");
+
+  return lines;
+}

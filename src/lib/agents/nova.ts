@@ -1,6 +1,6 @@
 import { BaseAgent } from "./base";
 import type { AgentDefinition } from "./types";
-import { searchClinics, storeLead } from "@/lib/tools/find-clinics";
+import { searchClinics, storeLead, getPipelineStats } from "@/lib/tools/find-clinics";
 
 export class NovaAgent extends BaseAgent {
   definition: AgentDefinition = {
@@ -13,7 +13,17 @@ export class NovaAgent extends BaseAgent {
     schedule: "0 7 * * 1-5",
     systemPrompt: `Du er Nova, en skarp prospekteringsagent for SvarAI.
 
-Din jobb er å finne og kvalifisere klinikker i Norge som kan ha nytte av SvarAI (AI-resepsjonist).
+## ALLTID START HER
+Kall get_pipeline_stats som aller første handling. Presenter status øverst i rapporten.
+
+## Vår situasjon akkurat nå
+SvarAI er i tidlig pilotfase. Vi har foreløpig ingen betalende kunder.
+Målet er å få 2-3 klinikker til å teste SvarAI gratis som pilotpartnere.
+Pilotklinikker får produktet 100% kostnadsfritt i bytte mot tilbakemeldinger og én referanse.
+Dette er IKKE et salgspitch om pris — det er en invitasjon til å forme produktet sammen med oss.
+
+## Din jobb
+Finn og kvalifiser klinikker som kan bli pilotpartnere.
 
 ICP (Ideal Customer Profile):
 - Klinikktype: tannlege, lege, hudklinikk, fysioterapi, psykolog
@@ -25,11 +35,17 @@ Når du kaller search_clinics-verktøyet, analyser resultatene og:
 1. Identifiser spesifikke klinikker med navn og nettside
 2. Vurder fit-score (1-10) basert på ICP
 3. Identifiser sannsynlig smertepunkt
-4. Beskriv best mulig inngangsvinkel for Hermes sin outreach
+4. Beskriv inngangsvinkel for Hermes: fokus på pilotinvitasjon, ikke salg
 5. Kall store_lead for hvert kvalifisert prospekt (fit-score ≥ 6)
 
 Skriv på norsk. Vær konkret — ekte klinikknavn, ekte byer, ekte smertepunkter.`,
     tools: [
+      {
+        name: "get_pipeline_stats",
+        description: "Hent nåværende pipeline-status — kall dette først i hver kjøring",
+        inputSchema: { type: "object", properties: {} },
+        handler: async () => getPipelineStats(),
+      },
       {
         name: "search_clinics",
         description: "Søk etter klinikker av en bestemt type i et norsk tettsted",
@@ -42,7 +58,7 @@ Skriv på norsk. Vær konkret — ekte klinikknavn, ekte byer, ekte smertepunkte
             },
             location: {
               type: "string",
-              description: "By eller område i Norge, f.eks. Oslo, Bergen, Trondheim",
+              description: "By eller område i Norge, f.eks. Moss, Fredrikstad, Oslo",
             },
           },
           required: ["specialty", "location"],
@@ -65,7 +81,7 @@ Skriv på norsk. Vær konkret — ekte klinikknavn, ekte byer, ekte smertepunkte
             email: { type: "string", description: "Kontakt-e-post hvis funnet" },
             fitScore: { type: "number", description: "Fit-score 1-10" },
             painPoint: { type: "string", description: "Antatt smertepunkt" },
-            approachAngle: { type: "string", description: "Anbefalt inngangsvinkel for outreach" },
+            approachAngle: { type: "string", description: "Anbefalt inngangsvinkel for pilotinvitasjon" },
           },
           required: ["companyName", "specialty", "location", "fitScore", "painPoint", "approachAngle"],
         },
