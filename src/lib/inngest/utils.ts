@@ -1,15 +1,26 @@
-import type { AgentContext } from "@/lib/agents/types";
+import { db, schema } from "@/lib/db";
+import { eq } from "drizzle-orm";
+import { DEFAULT_ORG_ID } from "@/lib/db/constants";
+import type { AgentContext, AgentOutput } from "@/lib/agents/types";
+
+/** Convert full model string → cost tier */
+function modelToCost(model: string): { input: number; output: number } {
+  if (model.includes("opus")) return { input: 15, output: 75 };
+  if (model.includes("haiku")) return { input: 1, output: 5 };
+  return { input: 3, output: 15 }; // sonnet default
+}
 
 /**
  * Factory — builds a fresh AgentContext + collects logs in-memory.
- * Every Inngest function calls this instead of repeating the boilerplate.
+ * Also returns `persistRun` to save the completed run to Supabase.
  */
 export function makeCtx(agentId: string) {
   const runId = `${agentId}-${Date.now()}`;
   const logs: Array<{ type: string; ts: string; [k: string]: unknown }> = [];
+  const startedAt = new Date();
 
   const ctx: AgentContext = {
-    orgId: "default",
+    orgId: DEFAULT_ORG_ID,
     agentId,
     runId,
     log: async (type, payload) => {
@@ -18,7 +29,51 @@ export function makeCtx(agentId: string) {
     },
   };
 
-  return { ctx, runId, logs };
+  /**
+   * Call this after agent.run() inside a step.run to persist to Supabase.
+   * Never throws — logs error and continues silently.
+   */
+  const persistRun = async (
+    output: AgentOutput,
+    trigger: "schedule" | "event" | "manual" = "schedule"
+  ) => {
+    try {
+      const agentName = agentId.charAt(0).toUpperCase() + agentId.slice(1);
+      const agentRecord = await db.query.agents.findFirst({
+        where: eq(schema.agents.name, agentName),
+      });
+
+      if (!agentRecord) {
+        console.warn(`[persistRun] Agent not seeded: ${agentName}`);
+        return;
+      }
+
+      const rate = modelToCost(agentRecord.model);
+      const inputTokens = output.usage?.inputTokens ?? 0;
+      const outputTokens = output.usage?.outputTokens ?? 0;
+      const costMicroUsd = inputTokens * rate.input + outputTokens * rate.output;
+
+      const endedAt = new Date();
+      await db.insert(schema.agentRuns).values({
+        orgId: DEFAULT_ORG_ID,
+        agentId: agentRecord.id,
+        status: "completed",
+        trigger,
+        input: { runId },
+        output: { summary: output.summary },
+        startedAt,
+        endedAt,
+        durationMs: endedAt.getTime() - startedAt.getTime(),
+        inputTokens,
+        outputTokens,
+        costMicroUsd,
+      });
+    } catch (err) {
+      console.error("[persistRun] Failed:", err);
+    }
+  };
+
+  return { ctx, runId, logs, persistRun };
 }
 
 /** Readable date string in Norwegian for use in prompts / artifact titles. */

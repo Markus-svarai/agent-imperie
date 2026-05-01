@@ -16,11 +16,7 @@ import Link from "next/link";
 import { Card, CardHeader } from "@/components/ui/card";
 import { StatTile } from "@/components/stat-tile";
 import { Badge } from "@/components/ui/badge";
-import {
-  MOCK_AGENTS,
-  AGENTS_BY_DEPARTMENT,
-  MOCK_RECENT_RUNS,
-} from "@/lib/mock-data";
+import { AGENTS_BY_DEPARTMENT } from "@/lib/mock-data";
 import { DEPARTMENTS } from "@/lib/departments";
 import { cn, formatRelative } from "@/lib/utils";
 
@@ -35,10 +31,34 @@ const DEPT_ICONS: Record<string, React.ElementType> = {
   research: FlaskConical,
 };
 
-export default function DashboardPage() {
-  const activeAgents = MOCK_AGENTS.filter((a) => a.status === "active").length;
-  const totalAgents = MOCK_AGENTS.length;
-  const opusAgents = MOCK_AGENTS.filter((a) => a.model === "opus").length;
+async function getStats() {
+  try {
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3001";
+    const res = await fetch(`${baseUrl}/api/dashboard/stats`, {
+      next: { revalidate: 60 },
+    });
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
+}
+
+export default async function DashboardPage() {
+  const stats = await getStats();
+
+  const totalAgents = 32;
+  const tokensToday = stats?.tokensToday ?? 0;
+  const costToday = stats?.costTodayUsd ?? 0;
+  const recentRuns: Array<{
+    id: string;
+    agentName: string;
+    summary: string;
+    startedAt: string | null;
+    status: string;
+  }> = stats?.recentRuns ?? [];
+
+  const hasRuns = recentRuns.length > 0;
 
   return (
     <div className="px-8 py-7 max-w-[1400px] mx-auto">
@@ -52,11 +72,10 @@ export default function DashboardPage() {
             God morgen, Markus.
           </h1>
           <p className="text-sm text-fg-muted mt-1">
-            {totalAgents} agenter · 8 avdelinger · {opusAgents} på Opus.{" "}
-            Imperiet venter på runtime.
+            {totalAgents} agenter · 8 avdelinger · Imperiet kjører.
           </p>
         </div>
-        <Badge variant="warn">Fase 1 · Fundament</Badge>
+        <Badge variant="ok">Live · Fase 3</Badge>
       </div>
 
       {/* KPI row */}
@@ -64,7 +83,7 @@ export default function DashboardPage() {
         <StatTile
           label="Agenter totalt"
           value={`${totalAgents}`}
-          sublabel={`${activeAgents} aktive nå`}
+          sublabel="32 agenter i flåten"
           icon={Sparkles}
         />
         <StatTile
@@ -75,14 +94,14 @@ export default function DashboardPage() {
         />
         <StatTile
           label="Tokens brukt"
-          value="0"
-          sublabel="Runtime ikke aktivert ennå"
+          value={tokensToday > 0 ? tokensToday.toLocaleString("nb-NO") : "0"}
+          sublabel={tokensToday > 0 ? "I dag" : "Venter på første kjøring"}
           icon={Zap}
         />
         <StatTile
           label="Kostnad i dag"
-          value="$0.00"
-          sublabel="Estimert mikro-USD"
+          value={`$${costToday.toFixed(4)}`}
+          sublabel="Estimert USD"
           icon={DollarSign}
         />
       </div>
@@ -110,7 +129,6 @@ export default function DashboardPage() {
           <div className="grid grid-cols-2 gap-4">
             {DEPARTMENTS.map((dept) => {
               const agents = AGENTS_BY_DEPARTMENT[dept.id] ?? [];
-              const active = agents.filter((a) => a.status === "active").length;
               const Icon = DEPT_ICONS[dept.id] ?? Activity;
               return (
                 <Link
@@ -167,9 +185,7 @@ export default function DashboardPage() {
                           </div>
                         )}
                       </div>
-                      <span>
-                        {active > 0 ? `${active} aktiv` : "Alle idle"}
-                      </span>
+                      <span>Alle idle</span>
                     </div>
                     <ArrowRight className="size-4 text-fg-subtle group-hover:text-accent transition-colors" />
                   </div>
@@ -185,9 +201,9 @@ export default function DashboardPage() {
           <Card>
             <CardHeader
               title="Aktivitetsfeed"
-              description="Siste hendelser fra flåten"
+              description="Siste kjøringer fra flåten"
             />
-            {MOCK_RECENT_RUNS.length === 0 ? (
+            {!hasRuns ? (
               <div className="py-12 text-center">
                 <div className="size-10 mx-auto rounded-full bg-bg-elevated border border-border flex items-center justify-center mb-3">
                   <Activity className="size-4 text-fg-subtle" />
@@ -196,23 +212,26 @@ export default function DashboardPage() {
                   Ingen kjøringer ennå
                 </div>
                 <div className="text-xs text-fg-subtle mt-1 max-w-[220px] mx-auto">
-                  Når runtime kobles på i Fase 2 dukker hver kjøring opp her i
-                  sanntid.
+                  Agentene kjører etter cron-schedule. Første kjøring dukker opp her automatisk.
                 </div>
               </div>
             ) : (
               <ul className="divide-y divide-border-subtle -mx-5">
-                {MOCK_RECENT_RUNS.map((run) => (
+                {recentRuns.map((run) => (
                   <li key={run.id} className="px-5 py-3 hover:bg-bg-elevated">
                     <div className="flex items-center justify-between">
-                      <div>
+                      <div className="min-w-0 flex-1">
                         <div className="text-sm font-medium">{run.agentName}</div>
                         <div className="text-xs text-fg-muted line-clamp-1">
-                          {run.summary}
+                          {run.summary || "Kjøring fullført"}
                         </div>
                       </div>
-                      <div className="text-xs text-fg-subtle whitespace-nowrap ml-3">
-                        {formatRelative(run.startedAt)}
+                      <div className="text-xs text-fg-subtle whitespace-nowrap ml-3 flex items-center gap-1.5">
+                        <span className={cn(
+                          "size-1.5 rounded-full",
+                          run.status === "completed" ? "bg-status-ok" : "bg-status-error"
+                        )} />
+                        {run.startedAt ? formatRelative(new Date(run.startedAt)) : "—"}
                       </div>
                     </div>
                   </li>
@@ -226,8 +245,9 @@ export default function DashboardPage() {
             <CardHeader title="Flåteoversikt" description="Agenter per modell" />
             <div className="space-y-2 text-sm">
               {(["opus", "sonnet", "haiku"] as const).map((model) => {
-                const count = MOCK_AGENTS.filter((a) => a.model === model).length;
-                const pct = Math.round((count / totalAgents) * 100);
+                const counts = { opus: 2, sonnet: 22, haiku: 8 };
+                const count = counts[model];
+                const pct = Math.round((count / 32) * 100);
                 return (
                   <div key={model}>
                     <div className="flex items-center justify-between mb-1 text-xs">
@@ -257,12 +277,12 @@ export default function DashboardPage() {
 
           {/* Phase tracker */}
           <Card className="bg-gradient-to-br from-bg-surface to-bg-elevated border-accent/20">
-            <CardHeader title="Neste fase" description="Fundamentet er på plass" />
+            <CardHeader title="Fremdrift" description="Imperiet bygges" />
             <div className="space-y-2.5 text-sm">
               <FaseStep label="Fase 1 · Fundament + 32 agenter" status="done" />
-              <FaseStep label="Fase 2 · Runtime (Inngest)" status="next" />
-              <FaseStep label="Fase 3 · Supabase + historikk" status="todo" />
-              <FaseStep label="Fase 4 · Ekte datakilder" status="todo" />
+              <FaseStep label="Fase 2 · Runtime (Inngest)" status="done" />
+              <FaseStep label="Fase 3 · Supabase + historikk" status="done" />
+              <FaseStep label="Fase 4 · Ekte datakilder" status="next" />
               <FaseStep label="Fase 5 · Varsling + Deployment" status="todo" />
             </div>
           </Card>

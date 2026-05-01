@@ -12,7 +12,7 @@ export const mintKostnadsrapport = inngest.createFunction(
   { id: "mint-kostnadsrapport", name: "Mint · Nattlig kostnadsrapport", retries: 2 },
   { cron: "0 23 * * *" },
   async ({ step }) => {
-    const { ctx, runId, logs } = makeCtx("mint");
+    const { ctx, runId, logs, persistRun } = makeCtx("mint");
     const output = await step.run("mint-analyserer-kostnader", () =>
       mint.run(
         { message: `Dato: ${dagsDato()}. Analyser dagens token-forbruk og lever kostnadsrapport med optimaliseringsforslag.` },
@@ -28,6 +28,8 @@ export const mintKostnadsrapport = inngest.createFunction(
       });
     });
 
+    await step.run("lagre-kjøring", () => persistRun(output));
+
     return { runId, rapport: output.summary, artifacts: output.artifacts, usage: output.usage, logs };
   }
 );
@@ -38,7 +40,7 @@ export const voltVekstanalyse = inngest.createFunction(
   { id: "volt-vekstanalyse", name: "Volt · Ukentlig vekstanalyse", retries: 2 },
   { cron: "0 9 * * 5" },
   async ({ step }) => {
-    const { ctx, runId, logs } = makeCtx("volt");
+    const { ctx, runId, logs, persistRun } = makeCtx("volt");
     const output = await step.run("volt-analyserer-vekst", () =>
       volt.run(
         { message: `Fredag ${dagsDato()}. Lever ukentlig vekstanalyse: retention, ARR, CAC/LTV og churn-risiko.` },
@@ -53,6 +55,8 @@ export const voltVekstanalyse = inngest.createFunction(
         data: { analyse: output.summary, dato: new Date().toISOString() },
       });
     });
+
+    await step.run("lagre-kjøring", () => persistRun(output));
 
     return { runId, analyse: output.summary, artifacts: output.artifacts, usage: output.usage, logs };
   }

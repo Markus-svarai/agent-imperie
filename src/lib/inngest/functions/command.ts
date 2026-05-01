@@ -14,13 +14,15 @@ export const athenaUkestrategi = inngest.createFunction(
   { id: "athena-ukestrategi", name: "Athena · Ukentlig strategi", retries: 1 },
   { cron: "0 8 * * 1" },
   async ({ step }) => {
-    const { ctx, runId, logs } = makeCtx("athena");
+    const { ctx, runId, logs, persistRun } = makeCtx("athena");
     const output = await step.run("athena-analyserer", () =>
       athena.run(
         { message: `Det er ${dagsDato()}. Lever ukentlig strategianalyse for SvarAI.` },
         ctx
       )
     );
+    await step.run("lagre-kjøring", () => persistRun(output));
+
     return { runId, summary: output.summary, artifacts: output.artifacts, usage: output.usage, logs };
   }
 );
@@ -30,13 +32,15 @@ export const athenaReagerPaaIntel = inngest.createFunction(
   { id: "athena-reagerer-intel", name: "Athena · Reagerer på markedsintel", retries: 1 },
   { event: "oracle/intel.ready" },
   async ({ event, step }) => {
-    const { ctx, runId, logs } = makeCtx("athena");
+    const { ctx, runId, logs, persistRun } = makeCtx("athena");
     const output = await step.run("athena-vurderer-intel", () =>
       athena.run(
         { message: `Oracle har levert ny markedsintelligens:\n\n${event.data.rapport as string}\n\nVurder om dette krever strategijusteringer.` },
         ctx
       )
     );
+    await step.run("lagre-kjøring", () => persistRun(output));
+
     return { runId, summary: output.summary, usage: output.usage, logs };
   }
 );
@@ -47,7 +51,7 @@ export const oracleDagligIntel = inngest.createFunction(
   { id: "oracle-daglig-intel", name: "Oracle · Daglig markedsintelligens", retries: 2 },
   { cron: "0 7 * * *" },
   async ({ step }) => {
-    const { ctx, runId, logs } = makeCtx("oracle");
+    const { ctx, runId, logs, persistRun } = makeCtx("oracle");
     const output = await step.run("oracle-snoker", () =>
       oracle.run(
         { message: `Dato: ${dagsDato()}. Lever dagens markedsintelligens for SvarAI.` },
@@ -63,6 +67,8 @@ export const oracleDagligIntel = inngest.createFunction(
       });
     });
 
+    await step.run("lagre-kjøring", () => persistRun(output));
+
     return { runId, rapport: output.summary, artifacts: output.artifacts, usage: output.usage, logs };
   }
 );
@@ -73,13 +79,15 @@ export const nexusDagligKoordinering = inngest.createFunction(
   { id: "nexus-daglig-koordinering", name: "Nexus · Daglig koordinering", retries: 1 },
   { cron: "30 6 * * *" },
   async ({ step }) => {
-    const { ctx, runId, logs } = makeCtx("nexus");
+    const { ctx, runId, logs, persistRun } = makeCtx("nexus");
     const output = await step.run("nexus-koordinerer", () =>
       nexus.run(
         { message: `Det er ${dagsDato()}. Lever daglig koordineringsplan for agentflåten.` },
         ctx
       )
     );
+    await step.run("lagre-kjøring", () => persistRun(output));
+
     return { runId, plan: output.summary, usage: output.usage, logs };
   }
 );

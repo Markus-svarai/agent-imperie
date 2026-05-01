@@ -16,7 +16,7 @@ export const beaconSeoAnalyse = inngest.createFunction(
   { id: "beacon-seo-analyse", name: "Beacon · Ukentlig SEO-analyse", retries: 2 },
   { cron: "0 6 * * 1" },
   async ({ step }) => {
-    const { ctx, runId, logs } = makeCtx("beacon");
+    const { ctx, runId, logs, persistRun } = makeCtx("beacon");
     const output = await step.run("beacon-analyserer", () =>
       beacon.run(
         { message: `Mandag ${dagsDato()}. Lever ukentlig SEO-analyse og gi Muse 3 konkrete blogg-temaer.` },
@@ -32,6 +32,8 @@ export const beaconSeoAnalyse = inngest.createFunction(
       });
     });
 
+    await step.run("lagre-kjøring", () => persistRun(output));
+
     return { runId, analyse: output.summary, usage: output.usage, logs };
   }
 );
@@ -42,7 +44,7 @@ export const museSkriverInnhold = inngest.createFunction(
   { id: "muse-skriver-innhold", name: "Muse · Innholdsproduksjon", retries: 2 },
   { cron: "0 9 * * 2,4" },
   async ({ step }) => {
-    const { ctx, runId, logs } = makeCtx("muse");
+    const { ctx, runId, logs, persistRun } = makeCtx("muse");
     const output = await step.run("muse-skriver", () =>
       muse.run(
         { message: `Det er ${dagsDato()}. Skriv ett stykke innhold for SvarAI — blogginnlegg, LinkedIn-artikkel eller case study. Velg det mest verdifulle for vekst akkurat nå.` },
@@ -58,6 +60,8 @@ export const museSkriverInnhold = inngest.createFunction(
       });
     });
 
+    await step.run("lagre-kjøring", () => persistRun(output));
+
     return { runId, innhold: output.summary, artifacts: output.artifacts, usage: output.usage, logs };
   }
 );
@@ -67,7 +71,7 @@ export const museReagerPaaBeacon = inngest.createFunction(
   { id: "muse-beacon-triggered", name: "Muse · SEO-drevet innhold", retries: 1 },
   { event: "beacon/seo.ready" },
   async ({ event, step }) => {
-    const { ctx, runId, logs } = makeCtx("muse");
+    const { ctx, runId, logs, persistRun } = makeCtx("muse");
     const output = await step.run("muse-skriver-seo", () =>
       muse.run(
         { message: `Beacon anbefaler disse SEO-temaene:\n\n${event.data.anbefalinger as string}\n\nVelg det beste temaet og skriv innhold optimalisert for det.` },
@@ -80,6 +84,8 @@ export const museReagerPaaBeacon = inngest.createFunction(
         data: { innhold: output.summary, museRunId: runId, kilde: "beacon" },
       });
     });
+    await step.run("lagre-kjøring", () => persistRun(output));
+
     return { runId, innhold: output.summary, artifacts: output.artifacts, usage: output.usage, logs };
   }
 );
@@ -90,7 +96,7 @@ export const prismReviewer = inngest.createFunction(
   { id: "prism-reviewer", name: "Prism · Brand review", retries: 1 },
   { event: "muse/content.ready" },
   async ({ event, step }) => {
-    const { ctx, runId, logs } = makeCtx("prism");
+    const { ctx, runId, logs, persistRun } = makeCtx("prism");
     const innhold = event.data.innhold as string;
 
     const output = await step.run("prism-reviewerer", () =>
@@ -111,6 +117,8 @@ export const prismReviewer = inngest.createFunction(
       });
     }
 
+    await step.run("lagre-kjøring", () => persistRun(output));
+
     return { runId, review: output.summary, godkjent, usage: output.usage, logs };
   }
 );
@@ -120,13 +128,15 @@ export const prismReviewerOutreach = inngest.createFunction(
   { id: "prism-outreach-review", name: "Prism · Outreach brand review", retries: 1 },
   { event: "hermes/outreach.ready" },
   async ({ event, step }) => {
-    const { ctx, runId, logs } = makeCtx("prism");
+    const { ctx, runId, logs, persistRun } = makeCtx("prism");
     const output = await step.run("prism-reviewerer-outreach", () =>
       prism.run(
         { message: `Review denne outreach-meldingen fra Hermes:\n\n${event.data.melding as string}` },
         ctx
       )
     );
+    await step.run("lagre-kjøring", () => persistRun(output));
+
     return { runId, review: output.summary, usage: output.usage, logs };
   }
 );
@@ -137,7 +147,7 @@ export const echoDistribuerer = inngest.createFunction(
   { id: "echo-distribuerer", name: "Echo · Distribuerer innhold", retries: 2 },
   { event: "prism/content.approved" },
   async ({ event, step }) => {
-    const { ctx, runId, logs } = makeCtx("echo");
+    const { ctx, runId, logs, persistRun } = makeCtx("echo");
     const innhold = event.data.innhold as string;
 
     const output = await step.run("echo-tilpasser", () =>
@@ -146,6 +156,8 @@ export const echoDistribuerer = inngest.createFunction(
         ctx
       )
     );
+
+    await step.run("lagre-kjøring", () => persistRun(output));
 
     return { runId, distribuert: output.summary, artifacts: output.artifacts, usage: output.usage, logs };
   }

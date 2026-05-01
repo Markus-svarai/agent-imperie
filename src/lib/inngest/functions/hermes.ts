@@ -1,22 +1,8 @@
 import { inngest } from "../client";
+import { makeCtx } from "../utils";
 import { HermesAgent } from "@/lib/agents/hermes";
-import type { AgentContext } from "@/lib/agents/types";
 
 const hermes = new HermesAgent();
-
-function lagKontekst(runId: string) {
-  const logs: unknown[] = [];
-  const ctx: AgentContext = {
-    orgId: "default",
-    agentId: "hermes",
-    runId,
-    log: async (type, payload) => {
-      logs.push({ type, ...payload, ts: new Date().toISOString() });
-      return runId;
-    },
-  };
-  return { ctx, logs };
-}
 
 // Trigges automatisk av Nova
 export const hermesSkrivMeldinger = inngest.createFunction(
@@ -27,15 +13,13 @@ export const hermesSkrivMeldinger = inngest.createFunction(
   },
   { event: "nova/leads.ready" },
   async ({ event, step }) => {
-    const runId = `hermes-${Date.now()}`;
-    const { ctx, logs } = lagKontekst(runId);
+    const { ctx, runId, logs, persistRun } = makeCtx("hermes");
 
     const output = await step.run("hermes-skriver", async () => {
-      return hermes.run(
-        { data: { leadliste: event.data.leadliste } },
-        ctx
-      );
+      return hermes.run({ data: { leadliste: event.data.leadliste } }, ctx);
     });
+
+    await step.run("lagre-kjøring", () => persistRun(output, "event"));
 
     return {
       runId,
@@ -57,15 +41,13 @@ export const hermesManuelOpdrag = inngest.createFunction(
   },
   { event: "hermes/skriv" },
   async ({ event, step }) => {
-    const runId = `hermes-manuelt-${Date.now()}`;
-    const { ctx, logs } = lagKontekst(runId);
+    const { ctx, runId, logs, persistRun } = makeCtx("hermes");
 
     const output = await step.run("hermes-manuelt", async () => {
-      return hermes.run(
-        { message: event.data.prospekter as string },
-        ctx
-      );
+      return hermes.run({ message: event.data.prospekter as string }, ctx);
     });
+
+    await step.run("lagre-kjøring", () => persistRun(output, "manual"));
 
     return {
       runId,

@@ -16,7 +16,7 @@ export const forgeImplementerer = inngest.createFunction(
   { id: "forge-implementerer", name: "Forge · Implementerer feature", retries: 2 },
   { event: "darwin/brief.ready" },
   async ({ event, step }) => {
-    const { ctx, runId, logs } = makeCtx("forge");
+    const { ctx, runId, logs, persistRun } = makeCtx("forge");
     const spec = event.data.spec as string;
 
     const output = await step.run("forge-koder", () =>
@@ -34,6 +34,8 @@ export const forgeImplementerer = inngest.createFunction(
       });
     });
 
+    await step.run("lagre-kjøring", () => persistRun(output));
+
     return { runId, kode: output.summary, artifacts: output.artifacts, usage: output.usage, logs };
   }
 );
@@ -43,7 +45,7 @@ export const forgeManuelOppdrag = inngest.createFunction(
   { id: "forge-manuelt", name: "Forge · Manuelt oppdrag", retries: 1 },
   { event: "forge/kod" },
   async ({ event, step }) => {
-    const { ctx, runId, logs } = makeCtx("forge");
+    const { ctx, runId, logs, persistRun } = makeCtx("forge");
     const output = await step.run("forge-koder-manuelt", () =>
       forge.run({ message: event.data.oppdrag as string }, ctx)
     );
@@ -53,6 +55,8 @@ export const forgeManuelOppdrag = inngest.createFunction(
         data: { kode: output.summary, forgeRunId: runId },
       });
     });
+    await step.run("lagre-kjøring", () => persistRun(output));
+
     return { runId, kode: output.summary, usage: output.usage, logs };
   }
 );
@@ -63,7 +67,7 @@ export const cipherReviewer = inngest.createFunction(
   { id: "cipher-reviewer", name: "Cipher · Code Review", retries: 2 },
   { event: "forge/code.ready" },
   async ({ event, step }) => {
-    const { ctx, runId, logs } = makeCtx("cipher");
+    const { ctx, runId, logs, persistRun } = makeCtx("cipher");
     const kode = event.data.kode as string;
 
     const output = await step.run("cipher-reviewerer", () =>
@@ -92,6 +96,8 @@ export const cipherReviewer = inngest.createFunction(
       });
     }
 
+    await step.run("lagre-kjøring", () => persistRun(output));
+
     return { runId, review: output.summary, godkjent, usage: output.usage, logs };
   }
 );
@@ -102,7 +108,7 @@ export const sentinelQA = inngest.createFunction(
   { id: "sentinel-qa", name: "Sentinel · QA Testing", retries: 2 },
   { event: "cipher/review.approved" },
   async ({ event, step }) => {
-    const { ctx, runId, logs } = makeCtx("sentinel");
+    const { ctx, runId, logs, persistRun } = makeCtx("sentinel");
     const kode = event.data.kode as string;
 
     const output = await step.run("sentinel-tester", () =>
@@ -111,6 +117,8 @@ export const sentinelQA = inngest.createFunction(
         ctx
       )
     );
+
+    await step.run("lagre-kjøring", () => persistRun(output));
 
     return { runId, testrapport: output.summary, artifacts: output.artifacts, usage: output.usage, logs };
   }
@@ -122,13 +130,15 @@ export const patchInfraCheck = inngest.createFunction(
   { id: "patch-infra-check", name: "Patch · Infrastruktursjekk", retries: 2 },
   { cron: "0 */6 * * *" },
   async ({ step }) => {
-    const { ctx, runId, logs } = makeCtx("patch");
+    const { ctx, runId, logs, persistRun } = makeCtx("patch");
     const output = await step.run("patch-sjekker-infra", () =>
       patch.run(
         { message: "Lever infrastrukturrapport. Sjekk deployments, ytelse og eventuelle anomalier." },
         ctx
       )
     );
+    await step.run("lagre-kjøring", () => persistRun(output));
+
     return { runId, rapport: output.summary, usage: output.usage, logs };
   }
 );
@@ -138,13 +148,15 @@ export const patchReagerSikkerhet = inngest.createFunction(
   { id: "patch-reagerer-sikkerhet", name: "Patch · Reagerer på sikkerhetsrapport", retries: 1 },
   { event: "vault/security.critical" },
   async ({ event, step }) => {
-    const { ctx, runId, logs } = makeCtx("patch");
+    const { ctx, runId, logs, persistRun } = makeCtx("patch");
     const output = await step.run("patch-handler-sikkerhet", () =>
       patch.run(
         { message: `Vault har funnet kritiske sikkerhetsproblemer:\n\n${event.data.funn as string}\n\nLag en umiddelbar handlingsplan.` },
         ctx
       )
     );
+    await step.run("lagre-kjøring", () => persistRun(output));
+
     return { runId, handlingsplan: output.summary, usage: output.usage, logs };
   }
 );

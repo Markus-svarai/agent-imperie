@@ -14,7 +14,7 @@ export const darwinProductBrief = inngest.createFunction(
   { id: "darwin-product-brief", name: "Darwin · Ukentlig product brief", retries: 2 },
   { cron: "0 10 * * 1" },
   async ({ step }) => {
-    const { ctx, runId, logs } = makeCtx("darwin");
+    const { ctx, runId, logs, persistRun } = makeCtx("darwin");
     const output = await step.run("darwin-analyserer", () =>
       darwin.run(
         { message: `Mandag ${dagsDato()}. Analyser brukerfeedback og lever ukentlig product brief med de 3 viktigste features å implementere.` },
@@ -30,6 +30,8 @@ export const darwinProductBrief = inngest.createFunction(
       });
     });
 
+    await step.run("lagre-kjøring", () => persistRun(output));
+
     return { runId, brief: output.summary, artifacts: output.artifacts, usage: output.usage, logs };
   }
 );
@@ -39,7 +41,7 @@ export const darwinAnalyserFeedback = inngest.createFunction(
   { id: "darwin-analyser-feedback", name: "Darwin · Analyser feedback", retries: 1 },
   { event: "darwin/feedback.inngitt" },
   async ({ event, step }) => {
-    const { ctx, runId, logs } = makeCtx("darwin");
+    const { ctx, runId, logs, persistRun } = makeCtx("darwin");
     const output = await step.run("darwin-analyserer-feedback", () =>
       darwin.run(
         { message: `Ny brukerfeedback mottatt:\n\n${event.data.feedback as string}\n\nAnalyser og lag en product brief basert på dette.` },
@@ -52,6 +54,8 @@ export const darwinAnalyserFeedback = inngest.createFunction(
         data: { spec: output.summary, darwinRunId: runId, kilde: "manuell-feedback" },
       });
     });
+    await step.run("lagre-kjøring", () => persistRun(output));
+
     return { runId, analyse: output.summary, usage: output.usage, logs };
   }
 );
@@ -62,13 +66,15 @@ export const atlasTekniskResearch = inngest.createFunction(
   { id: "atlas-teknisk-research", name: "Atlas · Teknisk research", retries: 1 },
   { cron: "0 10 * * 3" },
   async ({ step }) => {
-    const { ctx, runId, logs } = makeCtx("atlas");
+    const { ctx, runId, logs, persistRun } = makeCtx("atlas");
     const output = await step.run("atlas-forsker", () =>
       atlas.run(
         { message: `Onsdag ${dagsDato()}. Lever teknisk forskningsrapport — evaluer ny teknologi og arkitekturforbedringer for SvarAI.` },
         ctx
       )
     );
+    await step.run("lagre-kjøring", () => persistRun(output));
+
     return { runId, rapport: output.summary, artifacts: output.artifacts, usage: output.usage, logs };
   }
 );
@@ -79,13 +85,15 @@ export const siloByggerKunnskapsbase = inngest.createFunction(
   { id: "silo-kunnskapsbase", name: "Silo · Kunnskapsbase-oppdatering", retries: 2 },
   { cron: "0 22 * * *" },
   async ({ step }) => {
-    const { ctx, runId, logs } = makeCtx("silo");
+    const { ctx, runId, logs, persistRun } = makeCtx("silo");
     const output = await step.run("silo-dokumenterer", () =>
       silo.run(
         { message: `Det er ${dagsDato()} kl. 22:00. Oppdater kunnskapsbasen basert på dagens agent-aktivitet. Dokumenter viktige beslutninger og lærte mønstre.` },
         ctx
       )
     );
+    await step.run("lagre-kjøring", () => persistRun(output));
+
     return { runId, oppdatering: output.summary, artifacts: output.artifacts, usage: output.usage, logs };
   }
 );
@@ -95,13 +103,15 @@ export const siloLoggBeslutning = inngest.createFunction(
   { id: "silo-logg-beslutning", name: "Silo · Logger Jarvis-beslutning", retries: 1 },
   { event: "jarvis/beslutning.tatt" },
   async ({ event, step }) => {
-    const { ctx, runId, logs } = makeCtx("silo");
+    const { ctx, runId, logs, persistRun } = makeCtx("silo");
     const output = await step.run("silo-logger", () =>
       silo.run(
         { message: `Jarvis tok en viktig beslutning:\n\n${event.data.beslutning as string}\n\nLogg dette i kunnskapsbasen for fremtidig referanse.` },
         ctx
       )
     );
+    await step.run("lagre-kjøring", () => persistRun(output));
+
     return { runId, logg: output.summary, usage: output.usage, logs };
   }
 );

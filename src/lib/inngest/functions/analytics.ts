@@ -14,7 +14,7 @@ export const lensDagligKpis = inngest.createFunction(
   { id: "lens-daglig-kpis", name: "Lens · Daglig KPI-overvåking", retries: 2 },
   { cron: "0 8 * * *" },
   async ({ step }) => {
-    const { ctx, runId, logs } = makeCtx("lens");
+    const { ctx, runId, logs, persistRun } = makeCtx("lens");
     const output = await step.run("lens-analyserer", () =>
       lens.run(
         { message: `Dato: ${dagsDato()}. Lever daglig KPI-rapport. Sjekk for anomalier og flag eventuelle avvik.` },
@@ -40,6 +40,8 @@ export const lensDagligKpis = inngest.createFunction(
       });
     });
 
+    await step.run("lagre-kjøring", () => persistRun(output));
+
     return { runId, rapport: output.summary, artifacts: output.artifacts, usage: output.usage, logs };
   }
 );
@@ -50,7 +52,7 @@ export const sageUkesrapport = inngest.createFunction(
   { id: "sage-ukesrapport", name: "Sage · Ukentlig markedsrapport", retries: 2 },
   { cron: "0 7 * * 1" },
   async ({ step }) => {
-    const { ctx, runId, logs } = makeCtx("sage");
+    const { ctx, runId, logs, persistRun } = makeCtx("sage");
     const output = await step.run("sage-analyserer", () =>
       sage.run(
         { message: `Mandag ${dagsDato()}. Lever ukentlig markedsrapport — konkurrenter, trender og én strategisk anbefaling.` },
@@ -66,6 +68,8 @@ export const sageUkesrapport = inngest.createFunction(
       });
     });
 
+    await step.run("lagre-kjøring", () => persistRun(output));
+
     return { runId, rapport: output.summary, artifacts: output.artifacts, usage: output.usage, logs };
   }
 );
@@ -76,7 +80,7 @@ export const quillDagligSyntese = inngest.createFunction(
   { id: "quill-daglig-syntese", name: "Quill · Daglig executive summary", retries: 2 },
   { cron: "0 17 * * *" },
   async ({ step }) => {
-    const { ctx, runId, logs } = makeCtx("quill");
+    const { ctx, runId, logs, persistRun } = makeCtx("quill");
     const output = await step.run("quill-syntetiserer", () =>
       quill.run(
         { message: `Det er ${dagsDato()} kl. 17:00. Syntetiser dagens analytiker-output til ett executive summary for Ledger og Jarvis.` },
@@ -91,6 +95,8 @@ export const quillDagligSyntese = inngest.createFunction(
         data: { sammendrag: output.summary, dato: new Date().toISOString() },
       });
     });
+
+    await step.run("lagre-kjøring", () => persistRun(output));
 
     return { runId, sammendrag: output.summary, artifacts: output.artifacts, usage: output.usage, logs };
   }

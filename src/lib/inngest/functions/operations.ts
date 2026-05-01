@@ -14,7 +14,7 @@ export const vaultSikkerhetssjekk = inngest.createFunction(
   { id: "vault-sikkerhetssjekk", name: "Vault · Nattlig sikkerhetssjekk", retries: 2 },
   { cron: "0 3 * * *" },
   async ({ step }) => {
-    const { ctx, runId, logs } = makeCtx("vault");
+    const { ctx, runId, logs, persistRun } = makeCtx("vault");
     const output = await step.run("vault-scanner", () =>
       vault.run(
         { message: `Dato: ${dagsDato()}. Gjennomfør nattlig sikkerhetssjekk av Agent Imperie / SvarAI.` },
@@ -32,6 +32,8 @@ export const vaultSikkerhetssjekk = inngest.createFunction(
       });
     }
 
+    await step.run("lagre-kjøring", () => persistRun(output));
+
     return { runId, rapport: output.summary, artifacts: output.artifacts, usage: output.usage, logs };
   }
 );
@@ -42,7 +44,7 @@ export const fluxLoggEndring = inngest.createFunction(
   { id: "flux-logg-endring", name: "Flux · Logger endring", retries: 1 },
   { event: "system/change.detected" },
   async ({ event, step }) => {
-    const { ctx, runId, logs } = makeCtx("flux");
+    const { ctx, runId, logs, persistRun } = makeCtx("flux");
     const output = await step.run("flux-vurderer", () =>
       flux.run(
         {
@@ -51,6 +53,8 @@ export const fluxLoggEndring = inngest.createFunction(
         ctx
       )
     );
+    await step.run("lagre-kjøring", () => persistRun(output));
+
     return { runId, vurdering: output.summary, usage: output.usage, logs };
   }
 );
@@ -60,13 +64,15 @@ export const fluxPlanleggEndring = inngest.createFunction(
   { id: "flux-planlegg-endring", name: "Flux · Planlegg endring", retries: 1 },
   { event: "flux/planlegg" },
   async ({ event, step }) => {
-    const { ctx, runId, logs } = makeCtx("flux");
+    const { ctx, runId, logs, persistRun } = makeCtx("flux");
     const output = await step.run("flux-planlegger", () =>
       flux.run(
         { message: `Planlegg følgende endring og lag rollback-plan:\n\n${event.data.beskrivelse as string}` },
         ctx
       )
     );
+    await step.run("lagre-kjøring", () => persistRun(output));
+
     return { runId, plan: output.summary, usage: output.usage, logs };
   }
 );
@@ -77,13 +83,15 @@ export const kronosOptimaliser = inngest.createFunction(
   { id: "kronos-optimaliserer", name: "Kronos · Schedule-optimalisering", retries: 1 },
   { cron: "0 5 * * 1" },
   async ({ step }) => {
-    const { ctx, runId, logs } = makeCtx("kronos");
+    const { ctx, runId, logs, persistRun } = makeCtx("kronos");
     const output = await step.run("kronos-analyserer", () =>
       kronos.run(
         { message: `Mandag ${dagsDato()}. Analyser agentflåtens schedule for konflikter og optimaliseringsmuligheter.` },
         ctx
       )
     );
+    await step.run("lagre-kjøring", () => persistRun(output));
+
     return { runId, analyse: output.summary, artifacts: output.artifacts, usage: output.usage, logs };
   }
 );
