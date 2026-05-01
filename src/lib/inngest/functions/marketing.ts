@@ -1,5 +1,6 @@
 import { inngest } from "../client";
 import { makeCtx, dagsDato } from "../utils";
+import { searchMany } from "@/lib/tools/search";
 import { MuseAgent } from "@/lib/agents/marketing";
 import { BeaconAgent } from "@/lib/agents/marketing";
 import { PrismAgent } from "@/lib/agents/marketing";
@@ -17,9 +18,38 @@ export const beaconSeoAnalyse = inngest.createFunction(
   { cron: "0 6 * * 1" },
   async ({ step }) => {
     const { ctx, runId, logs, persistRun } = makeCtx("beacon");
+
+    // Hent ekte søkedata og konkurrentanalyse
+    const data = await step.run("hent-seo-data", () =>
+      searchMany({
+        keywords: "AI resepsjonist tannlege lege klinikk søkeord norsk",
+        konkurrenter: "SvarAI konkurrenter AI booking klinikk nettside blogg",
+        trender: "healthcare content marketing SEO trends 2025",
+        spørsmål: "AI telefonresepsjonist klinikk hvordan fungerer fordeler",
+      }, { days: 7 })
+    );
+
     const output = await step.run("beacon-analyserer", () =>
       beacon.run(
-        { message: `Mandag ${dagsDato()}. Lever ukentlig SEO-analyse og gi Muse 3 konkrete blogg-temaer.` },
+        {
+          message: `Mandag ${dagsDato()}. Lever ukentlig SEO-analyse for SvarAI.
+
+SØKEDATA FRA NETTET:
+
+Relevante søkeord og volum-signaler:
+${data.keywords}
+
+Konkurrenter og deres innhold:
+${data.konkurrenter}
+
+Content-trender:
+${data.trender}
+
+Vanlige spørsmål folk søker på:
+${data.spørsmål}
+
+Analyser dette og lever: (1) 3 høyprioritets søkeord vi bør rangere på, (2) innholdsgap vs. konkurrenter, (3) 3 konkrete blogg-temaer med tittelforslag til Muse.`,
+        },
         ctx
       )
     );

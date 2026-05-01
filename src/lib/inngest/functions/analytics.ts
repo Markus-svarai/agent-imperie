@@ -1,5 +1,6 @@
 import { inngest } from "../client";
 import { makeCtx, dagsDato } from "../utils";
+import { searchMany } from "@/lib/tools/search";
 import { LensAgent } from "@/lib/agents/analytics";
 import { SageAgent } from "@/lib/agents/analytics";
 import { QuillAgent } from "@/lib/agents/analytics";
@@ -8,7 +9,7 @@ const lens = new LensAgent();
 const sage = new SageAgent();
 const quill = new QuillAgent();
 
-// ─── Lens — daglig KPI-overvåking (08:00) ───────────────────────���────────
+// ─── Lens — daglig KPI-overvåking (08:00) ────────────────────────────────
 
 export const lensDagligKpis = inngest.createFunction(
   { id: "lens-daglig-kpis", name: "Lens · Daglig KPI-overvåking", retries: 2 },
@@ -53,9 +54,38 @@ export const sageUkesrapport = inngest.createFunction(
   { cron: "0 7 * * 1" },
   async ({ step }) => {
     const { ctx, runId, logs, persistRun } = makeCtx("sage");
+
+    // Hent markedsdata fra nettet
+    const data = await step.run("hent-markedsdata", () =>
+      searchMany({
+        konkurrenter: "AI resepsjonist klinikk konkurrenter produkter priser",
+        trender: "AI healthcare booking automation trends Norway Nordic",
+        investering: "AI medical startup funding Series A 2025",
+        regulering: "AI helsevesen regulering GDPR Norge 2025",
+      }, { days: 7 })
+    );
+
     const output = await step.run("sage-analyserer", () =>
       sage.run(
-        { message: `Mandag ${dagsDato()}. Lever ukentlig markedsrapport — konkurrenter, trender og én strategisk anbefaling.` },
+        {
+          message: `Mandag ${dagsDato()}. Lever ukentlig markedsrapport for SvarAI.
+
+MARKEDSDATA FRA SISTE UKE:
+
+Konkurrenter og produktnyheter:
+${data.konkurrenter}
+
+Bransjetrender:
+${data.trender}
+
+Investeringer og exit:
+${data.investering}
+
+Regulering og compliance:
+${data.regulering}
+
+Syntetiser dette til én strukturert ukesrapport: konkurransebilde, muligheter, trusler, og én klar strategisk anbefaling til SvarAI-teamet.`,
+        },
         ctx
       )
     );
@@ -74,7 +104,7 @@ export const sageUkesrapport = inngest.createFunction(
   }
 );
 
-// ─── Quill — daglig syntese (17:00) ────────────────────────────��─────────
+// ─── Quill — daglig syntese (17:00) ──────────────────────────────────────
 
 export const quillDagligSyntese = inngest.createFunction(
   { id: "quill-daglig-syntese", name: "Quill · Daglig executive summary", retries: 2 },

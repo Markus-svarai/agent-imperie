@@ -1,5 +1,6 @@
 import { inngest } from "../client";
 import { makeCtx, dagsDato } from "../utils";
+import { searchMany } from "@/lib/tools/search";
 import { DarwinAgent } from "@/lib/agents/research";
 import { AtlasAgent } from "@/lib/agents/research";
 import { SiloAgent } from "@/lib/agents/research";
@@ -15,9 +16,38 @@ export const darwinProductBrief = inngest.createFunction(
   { cron: "0 10 * * 1" },
   async ({ step }) => {
     const { ctx, runId, logs, persistRun } = makeCtx("darwin");
+
+    // Research konkurrerende features og brukerbehov
+    const data = await step.run("hent-produktdata", () =>
+      searchMany({
+        features: "AI resepsjonist klinikk features booking SMS 2025",
+        brukerfeedback: "\"AI receptionist\" clinic review problems complaints",
+        konkurrenter: "Klara Avy Hyro Dialpad healthcare AI features",
+        teknologi: "LLM voice AI appointment booking best practices 2025",
+      }, { days: 14 })
+    );
+
     const output = await step.run("darwin-analyserer", () =>
       darwin.run(
-        { message: `Mandag ${dagsDato()}. Analyser brukerfeedback og lever ukentlig product brief med de 3 viktigste features å implementere.` },
+        {
+          message: `Mandag ${dagsDato()}. Lag ukentlig product brief for SvarAI.
+
+RESEARCH FRA MARKEDET:
+
+Features i markedet:
+${data.features}
+
+Brukerfeedback og problemer:
+${data.brukerfeedback}
+
+Konkurrentanalyse:
+${data.konkurrenter}
+
+Relevant teknologi:
+${data.teknologi}
+
+Basert på dette: identifiser de 3 viktigste features SvarAI bør implementere neste. Vær spesifikk med akseptansekriterier.`,
+        },
         ctx
       )
     );
@@ -67,9 +97,38 @@ export const atlasTekniskResearch = inngest.createFunction(
   { cron: "0 10 * * 3" },
   async ({ step }) => {
     const { ctx, runId, logs, persistRun } = makeCtx("atlas");
+
+    // Hent teknisk research
+    const data = await step.run("hent-tech-data", () =>
+      searchMany({
+        llm: "latest LLM voice AI telephony integration 2025",
+        arkitektur: "Next.js Supabase Inngest production architecture patterns",
+        verktøy: "AI agent orchestration tools open source 2025",
+        sikkerhet: "GDPR AI healthcare data compliance Norway 2025",
+      }, { days: 14 })
+    );
+
     const output = await step.run("atlas-forsker", () =>
       atlas.run(
-        { message: `Onsdag ${dagsDato()}. Lever teknisk forskningsrapport — evaluer ny teknologi og arkitekturforbedringer for SvarAI.` },
+        {
+          message: `Onsdag ${dagsDato()}. Lever teknisk forskningsrapport for SvarAI.
+
+TEKNISK RESEARCH FRA NETTET:
+
+Nye LLM/voice-teknologier:
+${data.llm}
+
+Arkitektur og patterns:
+${data.arkitektur}
+
+Relevante verktøy:
+${data.verktøy}
+
+Sikkerhet og compliance:
+${data.sikkerhet}
+
+Analyser og anbefal: hva bør vi adoptere, hva bør vi følge med på, og hva kan vi ignorere?`,
+        },
         ctx
       )
     );

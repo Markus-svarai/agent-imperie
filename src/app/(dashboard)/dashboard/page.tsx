@@ -75,7 +75,7 @@ export default async function DashboardPage() {
             {totalAgents} agenter · 8 avdelinger · Imperiet kjører.
           </p>
         </div>
-        <Badge variant="ok">Live · Fase 3</Badge>
+        <Badge variant="ok">Live · Fase 4</Badge>
       </div>
 
       {/* KPI row */}
@@ -282,8 +282,8 @@ export default async function DashboardPage() {
               <FaseStep label="Fase 1 · Fundament + 32 agenter" status="done" />
               <FaseStep label="Fase 2 · Runtime (Inngest)" status="done" />
               <FaseStep label="Fase 3 · Supabase + historikk" status="done" />
-              <FaseStep label="Fase 4 · Ekte datakilder" status="next" />
-              <FaseStep label="Fase 5 · Varsling + Deployment" status="todo" />
+              <FaseStep label="Fase 4 · Ekte datakilder (Tavily)" status="done" />
+              <FaseStep label="Fase 5 · Varsling + Deployment" status="next" />
             </div>
           </Card>
         </div>

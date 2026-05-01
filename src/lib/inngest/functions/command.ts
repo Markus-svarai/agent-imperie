@@ -1,5 +1,6 @@
 import { inngest } from "../client";
 import { makeCtx, dagsDato } from "../utils";
+import { searchMany } from "@/lib/tools/search";
 import { AthenaAgent } from "@/lib/agents/command";
 import { OracleAgent } from "@/lib/agents/command";
 import { NexusAgent } from "@/lib/agents/command";
@@ -15,9 +16,34 @@ export const athenaUkestrategi = inngest.createFunction(
   { cron: "0 8 * * 1" },
   async ({ step }) => {
     const { ctx, runId, logs, persistRun } = makeCtx("athena");
+
+    // Hent strategisk kontekst fra nettet
+    const data = await step.run("hent-strategidata", () =>
+      searchMany({
+        marked: "AI resepsjonist klinikk marked Norge 2025",
+        konkurrenter: "SvarAI konkurrenter AI booking klinikk",
+        trender: "healthcare AI automation trends 2025",
+      })
+    );
+
     const output = await step.run("athena-analyserer", () =>
       athena.run(
-        { message: `Det er ${dagsDato()}. Lever ukentlig strategianalyse for SvarAI.` },
+        {
+          message: `Det er ${dagsDato()}. Lever ukentlig strategianalyse for SvarAI.
+
+MARKEDSDATA FRA NETTET:
+
+Markedssituasjon:
+${data.marked}
+
+Konkurrenter:
+${data.konkurrenter}
+
+Trender:
+${data.trender}
+
+Basert på dette — analyser posisjon, trusler og muligheter. Gi konkrete strategiske prioriteringer for neste uke.`,
+        },
         ctx
       )
     );
@@ -52,9 +78,38 @@ export const oracleDagligIntel = inngest.createFunction(
   { cron: "0 7 * * *" },
   async ({ step }) => {
     const { ctx, runId, logs, persistRun } = makeCtx("oracle");
+
+    // Hent ferskt fra nettet før analyse
+    const data = await step.run("hent-markedsdata", () =>
+      searchMany({
+        nyheter: `AI healthcare klinikk nyheter ${new Date().toLocaleDateString("nb-NO")}`,
+        konkurrenter: "AI resepsjonist tannlege lege hudklinikk konkurrenter",
+        svarAI: "SvarAI OR \"AI resepsjonist\" klinikk",
+        internasjonalt: "AI medical receptionist startup funding 2025",
+      }, { days: 3 })
+    );
+
     const output = await step.run("oracle-snoker", () =>
       oracle.run(
-        { message: `Dato: ${dagsDato()}. Lever dagens markedsintelligens for SvarAI.` },
+        {
+          message: `Dato: ${dagsDato()}. Lever dagens markedsintelligens for SvarAI.
+
+FERSKESTE DATA FRA NETTET:
+
+Nyheter i dag:
+${data.nyheter}
+
+Konkurrenter:
+${data.konkurrenter}
+
+SvarAI-omtaler:
+${data.svarAI}
+
+Internasjonale bevegelser:
+${data.internasjonalt}
+
+Analyser dette og lever ett strukturert intel-sammendrag: hva skjer, hvem beveger seg, og hva betyr det for SvarAI?`,
+        },
         ctx
       )
     );
