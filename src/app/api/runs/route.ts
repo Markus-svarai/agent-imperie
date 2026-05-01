@@ -3,7 +3,7 @@ import { db, schema } from "@/lib/db";
 import { eq, desc } from "drizzle-orm";
 import { DEFAULT_ORG_ID } from "@/lib/db/constants";
 
-export const revalidate = 30;
+export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {

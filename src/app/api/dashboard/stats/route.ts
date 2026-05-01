@@ -3,6 +3,8 @@ import { db, schema } from "@/lib/db";
 import { eq, gte, sum, count, desc } from "drizzle-orm";
 import { DEFAULT_ORG_ID } from "@/lib/db/constants";
 
+export const dynamic = "force-dynamic";
+
 export const revalidate = 60; // Cache 60s
 
 export async function GET() {
