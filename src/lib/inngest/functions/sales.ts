@@ -93,3 +93,42 @@ export const rexUkesanalyse = inngest.createFunction(
     return { runId, analyse: output.summary, artifacts: output.artifacts, usage: output.usage, logs };
   }
 );
+
+// ─── Titan — reagerer på inkommende e-postsvar ────────────────────────────
+
+export const titanReagerPaaSvar = inngest.createFunction(
+  { id: "titan-reager-paa-svar", name: "Titan · Reager på e-postsvar", retries: 2 },
+  { event: "email/reply.received" },
+  async ({ event, step }) => {
+    const { ctx, runId, logs, persistRun } = makeCtx("titan");
+
+    const { fromEmail, subject, body, leadId } = event.data as {
+      fromEmail: string;
+      subject: string;
+      body: string;
+      leadId: string | null;
+    };
+
+    const output = await step.run("titan-svarer", () =>
+      titan.run(
+        {
+          message: `Du har mottatt et svar fra ${fromEmail}.
+
+Emne: ${subject}
+
+Melding:
+${body}
+
+${leadId ? `Lead-ID: ${leadId}` : "Ukjent avsender — ikke i systemet ennå."}
+
+Les svaret nøye, vurder tonen og intensjonen, og send et passende svar som pusher mot demo-booking. Bruk send_reply-verktøyet. Oppdater lead-status med update_lead_status.`,
+        },
+        ctx
+      )
+    );
+
+    await step.run("lagre-kjøring", () => persistRun(output, "event"));
+
+    return { runId, svar: output.summary, usage: output.usage, logs };
+  }
+);

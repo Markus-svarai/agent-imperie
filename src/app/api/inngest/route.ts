@@ -25,7 +25,7 @@ import {
 
 // Sales
 import {
-  titanDagligOppfolging, titanOppfolgingEtterHermes,
+  titanDagligOppfolging, titanOppfolgingEtterHermes, titanReagerPaaSvar,
   pulsePipelineHygiene, rexUkesanalyse,
 } from "@/lib/inngest/functions/sales";
 
@@ -74,7 +74,7 @@ export const { GET, POST, PUT } = serve({
     patchInfraCheck, patchReagerSikkerhet,
 
     // ── Sales ────────────────────────────────────────────────────────────
-    titanDagligOppfolging, titanOppfolgingEtterHermes,
+    titanDagligOppfolging, titanOppfolgingEtterHermes, titanReagerPaaSvar,
     pulsePipelineHygiene, rexUkesanalyse,
 
     // ── Marketing ────────────────────────────────────────────────────────

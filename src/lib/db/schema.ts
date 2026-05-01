@@ -288,6 +288,73 @@ export const artifacts = pgTable(
   })
 );
 
+// ---------- leads (sales pipeline) ----------
+
+export const leadStatusEnum = pgEnum("lead_status", [
+  "new",
+  "contacted",
+  "replied",
+  "interested",
+  "demo_booked",
+  "customer",
+  "not_interested",
+  "unsubscribed",
+]);
+
+export const leads = pgTable(
+  "leads",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => orgs.id, { onDelete: "cascade" }),
+    companyName: text("company_name").notNull(),
+    contactName: text("contact_name"),
+    email: text("email"),
+    phone: text("phone"),
+    website: text("website"),
+    specialty: text("specialty"), // tannlege, lege, hudklinikk etc.
+    location: text("location"),
+    status: leadStatusEnum("status").notNull().default("new"),
+    source: text("source").default("nova"),
+    notes: text("notes"),
+    fitScore: integer("fit_score"),
+    lastContactedAt: timestamp("last_contacted_at"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => ({
+    orgIdx: index("leads_org_idx").on(t.orgId),
+    statusIdx: index("leads_status_idx").on(t.status),
+    emailIdx: index("leads_email_idx").on(t.email),
+  })
+);
+
+export const outreachEmails = pgTable(
+  "outreach_emails",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => orgs.id, { onDelete: "cascade" }),
+    leadId: uuid("lead_id").references(() => leads.id, { onDelete: "set null" }),
+    agentId: uuid("agent_id").references(() => agents.id, { onDelete: "set null" }),
+    direction: text("direction").notNull().default("outbound"), // "outbound" | "inbound"
+    fromEmail: text("from_email").notNull(),
+    toEmail: text("to_email").notNull(),
+    subject: text("subject").notNull(),
+    body: text("body").notNull(),
+    resendMessageId: text("resend_message_id"),
+    sentAt: timestamp("sent_at"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => ({
+    orgIdx: index("outreach_org_idx").on(t.orgId),
+    leadIdx: index("outreach_lead_idx").on(t.leadId),
+    directionIdx: index("outreach_direction_idx").on(t.direction),
+  })
+);
+
 // ---------- events (inter-agent + system signals) ----------
 
 export const events = pgTable(
@@ -366,6 +433,17 @@ export const eventsRelations = relations(events, ({ one }) => ({
   }),
 }));
 
+export const leadsRelations = relations(leads, ({ one, many }) => ({
+  org: one(orgs, { fields: [leads.orgId], references: [orgs.id] }),
+  emails: many(outreachEmails),
+}));
+
+export const outreachEmailsRelations = relations(outreachEmails, ({ one }) => ({
+  org: one(orgs, { fields: [outreachEmails.orgId], references: [orgs.id] }),
+  lead: one(leads, { fields: [outreachEmails.leadId], references: [leads.id] }),
+  agent: one(agents, { fields: [outreachEmails.agentId], references: [agents.id] }),
+}));
+
 // ---------- type exports ----------
 
 export type Org = typeof orgs.$inferSelect;
@@ -377,3 +455,6 @@ export type NewAgentRun = typeof agentRuns.$inferInsert;
 export type RunStep = typeof runSteps.$inferSelect;
 export type Artifact = typeof artifacts.$inferSelect;
 export type Event = typeof events.$inferSelect;
+export type Lead = typeof leads.$inferSelect;
+export type NewLead = typeof leads.$inferInsert;
+export type OutreachEmail = typeof outreachEmails.$inferSelect;

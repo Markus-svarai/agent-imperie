@@ -5,6 +5,7 @@
 
 import { BaseAgent } from "./base";
 import type { AgentDefinition } from "./types";
+import { postToLinkedIn } from "@/lib/tools/linkedin";
 
 // ─── Muse — Content Creator ───────────────────────────────────────────────
 
@@ -124,7 +125,28 @@ For hvert stykke innhold lager du:
 - Kort oppsummering av innholdet
 - Lenke til fullt blogginnlegg
 
-Skriv på norsk. Tilpass tone per kanal — LinkedIn er formelt, Twitter er mer direkte.`,
-    tools: [],
+Skriv på norsk. Tilpass tone per kanal — LinkedIn er formelt, Twitter er mer direkte.
+
+Når du har tilpasset innholdet for LinkedIn: kall post_linkedin-verktøyet for å faktisk publisere det.`,
+    tools: [
+      {
+        name: "post_linkedin",
+        description: "Publiser en ferdig LinkedIn-post direkte til SvarAI sin LinkedIn-side",
+        inputSchema: {
+          type: "object",
+          properties: {
+            text: {
+              type: "string",
+              description: "Ferdig LinkedIn-post (maks 1300 tegn, inkl. hashtags)",
+            },
+          },
+          required: ["text"],
+        },
+        handler: async (input: unknown) => {
+          const { text } = input as { text: string };
+          return postToLinkedIn({ text });
+        },
+      },
+    ],
   };
 }
