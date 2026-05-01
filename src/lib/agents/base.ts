@@ -1,0 +1,153 @@
+import { anthropic, pickModel, estimateCostMicroUsd } from "@/lib/anthropic/client";
+import type {
+  AgentContext,
+  AgentDefinition,
+  AgentInput,
+  AgentOutput,
+  AgentTool,
+} from "./types";
+
+/**
+ * BaseAgent — the runtime contract every agent inherits.
+ *
+ * Concrete agents (Jarvis, Nova, etc.) declare their definition and override
+ * `run()` if they need custom logic. The default `run()` is a one-shot Claude
+ * call with tool support — good enough for most agents.
+ *
+ * The runtime layer (Inngest function) is what actually:
+ *   - creates the agent_runs row
+ *   - injects the AgentContext (orgId, runId, log())
+ *   - persists output, artifacts, events, and usage
+ *
+ * BaseAgent itself stays pure-ish: given a context and input, return output.
+ */
+export abstract class BaseAgent {
+  abstract definition: AgentDefinition;
+
+  get model() {
+    return pickModel(this.definition.model);
+  }
+
+  protected toolsAsAnthropicSchema() {
+    return this.definition.tools.map((t) => ({
+      name: t.name,
+      description: t.description,
+      input_schema: t.inputSchema as never,
+    }));
+  }
+
+  protected getTool(name: string): AgentTool | undefined {
+    return this.definition.tools.find((t) => t.name === name);
+  }
+
+  /**
+   * Default run loop: call Claude, handle tool calls iteratively, return
+   * a final summary. Override for fully custom flows (e.g. multi-step
+   * pipelines that don't fit a chat-with-tools model).
+   */
+  async run(input: AgentInput, ctx: AgentContext): Promise<AgentOutput> {
+    const messages: Array<{
+      role: "user" | "assistant";
+      content: unknown;
+    }> = [
+      {
+        role: "user",
+        content: input.message ?? JSON.stringify(input.data ?? {}, null, 2),
+      },
+    ];
+
+    let totalInputTokens = 0;
+    let totalOutputTokens = 0;
+    let finalText = "";
+
+    // Cap iterations so a runaway tool loop can't burn through tokens.
+    for (let iter = 0; iter < 10; iter++) {
+      const response = await anthropic.messages.create({
+        model: this.model,
+        max_tokens: 4096,
+        system: this.definition.systemPrompt,
+        tools: this.toolsAsAnthropicSchema(),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        messages: messages as any,
+      });
+
+      totalInputTokens += response.usage.input_tokens;
+      totalOutputTokens += response.usage.output_tokens;
+
+      // Collect text + any tool uses from this turn.
+      const textBlocks = response.content
+        .filter((b) => b.type === "text")
+        .map((b) => (b as { type: "text"; text: string }).text);
+      const toolUses = response.content.filter((b) => b.type === "tool_use");
+
+      finalText = textBlocks.join("\n").trim() || finalText;
+
+      if (response.stop_reason !== "tool_use" || toolUses.length === 0) {
+        break;
+      }
+
+      messages.push({ role: "assistant", content: response.content });
+
+      const toolResults: Array<{
+        type: "tool_result";
+        tool_use_id: string;
+        content: string;
+      }> = [];
+
+      for (const block of toolUses) {
+        const tu = block as {
+          type: "tool_use";
+          id: string;
+          name: string;
+          input: unknown;
+        };
+        await ctx.log("tool_call", {
+          title: tu.name,
+          input: tu.input as Record<string, unknown>,
+        });
+
+        const tool = this.getTool(tu.name);
+        let result: unknown;
+        try {
+          if (!tool) throw new Error(`Unknown tool: ${tu.name}`);
+          result = await tool.handler(tu.input, ctx);
+        } catch (err) {
+          result = {
+            error: err instanceof Error ? err.message : String(err),
+          };
+        }
+
+        await ctx.log("tool_result", {
+          title: tu.name,
+          output: result as Record<string, unknown>,
+        });
+
+        toolResults.push({
+          type: "tool_result",
+          tool_use_id: tu.id,
+          content:
+            typeof result === "string" ? result : JSON.stringify(result),
+        });
+      }
+
+      messages.push({ role: "user", content: toolResults });
+    }
+
+    return {
+      summary: finalText || "(no output)",
+      usage: {
+        inputTokens: totalInputTokens,
+        outputTokens: totalOutputTokens,
+      },
+    };
+  }
+
+  /** Cost estimate for a usage tuple, for logging into agent_runs. */
+  estimateCost(inputTokens: number, outputTokens: number): number {
+    return estimateCostMicroUsd(
+      this.definition.model,
+      inputTokens,
+      outputTokens
+    );
+  }
+}
