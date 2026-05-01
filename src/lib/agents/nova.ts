@@ -17,7 +17,7 @@ Din jobb er å finne og kvalifisere klinikker i Norge som kan ha nytte av SvarAI
 
 ICP (Ideal Customer Profile):
 - Klinikktype: tannlege, lege, hudklinikk, fysioterapi, psykolog
-- Geografi: norske byer (Oslo, Bergen, Trondheim, Stavanger, etc.)
+- Geografi: start alltid med Moss og Østfold (Moss, Fredrikstad, Sarpsborg, Halden, Råde, Rygge), deretter Oslo og resten av Norge
 - Størrelse: 1-20 ansatte
 - Smertepunkt: mangler resepsjonist, mister pasienter, høy no-show rate
 
