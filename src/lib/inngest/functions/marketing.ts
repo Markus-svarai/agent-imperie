@@ -136,20 +136,44 @@ export const prismReviewer = inngest.createFunction(
       )
     );
 
-    const godkjent = output.summary.includes("✅ Godkjent") || output.summary.toLowerCase().includes("godkjent");
+    // Robust approval detection — check multiple patterns, avoid false negatives
+    const summaryLower = output.summary.toLowerCase();
+    const godkjent =
+      output.summary.includes("✅") ||
+      summaryLower.includes("godkjent") ||
+      summaryLower.includes("approved") ||
+      summaryLower.includes("klar for publisering") ||
+      summaryLower.includes("kan publiseres") ||
+      summaryLower.includes("ser bra ut") ||
+      summaryLower.includes("anbefaler publisering");
 
-    if (godkjent) {
+    const avvist =
+      summaryLower.includes("ikke godkjent") ||
+      summaryLower.includes("avvist") ||
+      summaryLower.includes("rejected") ||
+      summaryLower.includes("bør endres") ||
+      summaryLower.includes("ikke klar");
+
+    if (godkjent && !avvist) {
       await step.run("send-til-echo", async () => {
         await inngest.send({
           name: "prism/content.approved",
           data: { innhold, review: output.summary, prismRunId: runId },
         });
       });
+    } else if (avvist) {
+      // Send tilbake til Muse for revisjon
+      await step.run("send-til-muse-revisjon", async () => {
+        await inngest.send({
+          name: "prism/content.rejected",
+          data: { innhold, feedback: output.summary, prismRunId: runId },
+        });
+      });
     }
 
     await step.run("lagre-kjøring", () => persistRun(output));
 
-    return { runId, review: output.summary, godkjent, usage: output.usage, logs };
+    return { runId, review: output.summary, godkjent: godkjent && !avvist, usage: output.usage, logs };
   }
 );
 
@@ -168,6 +192,38 @@ export const prismReviewerOutreach = inngest.createFunction(
     await step.run("lagre-kjøring", () => persistRun(output));
 
     return { runId, review: output.summary, usage: output.usage, logs };
+  }
+);
+
+// ─── Muse — revisjon etter Prism-avvisning ────────────────────────────────
+
+export const museRevisjon = inngest.createFunction(
+  { id: "muse-revisjon", name: "Muse · Revisjon etter Prism-avvisning", retries: 1 },
+  { event: "prism/content.rejected" },
+  async ({ event, step }) => {
+    const { ctx, runId, logs, persistRun } = makeCtx("muse");
+    const { innhold, feedback } = event.data as { innhold: string; feedback: string };
+
+    const output = await step.run("muse-reviderer", () =>
+      muse.run(
+        {
+          message: `Prism avviste innholdet ditt med følgende tilbakemelding:\n\n${feedback}\n\nOriginalt innhold:\n${innhold}\n\nRevider innholdet basert på tilbakemeldingen. Hold budskapet, fix problemene.`,
+        },
+        ctx
+      )
+    );
+
+    // Send revidert innhold tilbake til Prism
+    await step.run("send-til-prism-igjen", async () => {
+      await inngest.send({
+        name: "muse/content.ready",
+        data: { innhold: output.summary, museRunId: runId, kilde: "revisjon" },
+      });
+    });
+
+    await step.run("lagre-kjøring", () => persistRun(output, "event"));
+
+    return { runId, revisjon: output.summary, artifacts: output.artifacts, usage: output.usage, logs };
   }
 );
 

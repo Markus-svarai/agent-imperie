@@ -6,6 +6,12 @@
 
 import { BaseAgent } from "./base";
 import type { AgentDefinition } from "./types";
+import { searchMany } from "@/lib/tools/search";
+import { getPipelineStats } from "@/lib/tools/find-clinics";
+import { getRecentRuns, getAllMemory, getPendingProposals, createStrategyProposal, setMemory } from "@/lib/tools/memory";
+import { db, schema } from "@/lib/db";
+import { eq, desc, gte } from "drizzle-orm";
+import { DEFAULT_ORG_ID } from "@/lib/db/constants";
 
 // ─── Athena — Chief Strategy Officer ────────────────────────────────────────
 
@@ -16,25 +22,166 @@ export class AthenaAgent extends BaseAgent {
     role: "strategist",
     model: "opus",
     description:
-      "Chief Strategy Officer. Kvartalsvise strategiplaner, markedsvurderinger og store retningsskifter.",
+      "Chief Strategy Officer. Leser hva alle agenter har gjort, identifiserer hva som ikke virker, og sender Markus konkrete strategiforslag.",
     schedule: "0 8 * * 1",
-    systemPrompt: `Du er Athena, Chief Strategy Officer for Agent Imperie / SvarAI.
+    systemPrompt: `Du er Athena, Chief Strategy Officer for SvarAI.
 
-Din jobb er å tenke langsiktig og strategisk på vegne av Markus.
+## ALLTID START HER — fire obligatoriske steg
+1. Kall get_pipeline_stats — se nåværende salgsstatus
+2. Kall get_recent_runs — les hva alle agenter har gjort siste 7 dager
+3. Kall get_all_agent_memory — les hva agentene har lært
+4. Kall get_artifacts — les de viktigste analysene (Rex, Scribe, Lens)
 
-Du analyserer:
-- Markedsposisjon og konkurransesituasjon
-- Vekstmuligheter og ekspansjonsretninger
-- Produktstrategi og prioriteringer
-- Trusler og risikofaktorer
+## Din jobb
+Du er den eneste agenten som ser hele bildet. Ditt ansvar:
+- Identifiser hva som IKKE virker (og hvorfor)
+- Finn mønstre på tvers av agenter
+- Kom med konkrete forbedringsforslag — ikke generell strategi
+- Foreslå nye ideer Markus kan prøve
 
-Du leverer alltid:
-1. En situasjonsanalyse (hva er status nå)
-2. En strategisk anbefaling (hva bør prioriteres)
-3. Konkrete neste steg (hvem gjør hva)
+## Alltid lever
+1. **Situasjonsanalyse** — hva er status akkurat nå, basert på faktiske tall
+2. **Hva fungerer ikke** — vær ærlig og spesifikk
+3. **3 konkrete forslag** med prioritet (høy/medium/lav) og hvem som bør gjøre det
+4. **Én ny idé** — noe vi ikke har prøvd ennå
 
-Skriv på norsk. Vær analytisk, direkte og strategisk. Ikke generaliser — vær spesifikk på SvarAI sin situasjon.`,
-    tools: [],
+## Etter analysen
+Kall create_strategy_proposal for å lagre forslagene dine.
+Dette gjør at Markus ser dem i dashboardet og kan si ja/nei.
+
+Skriv på norsk. Vær direkte og ærlig — ikke ros det som ikke virker.`,
+    tools: [
+      {
+        name: "get_pipeline_stats",
+        description: "Hent nåværende pipeline-status",
+        inputSchema: { type: "object", properties: {} },
+        handler: async () => getPipelineStats(),
+      },
+      {
+        name: "get_recent_runs",
+        description: "Hent sammendrag av alle agent-kjøringer siste N dager",
+        inputSchema: {
+          type: "object",
+          properties: {
+            days: { type: "number", description: "Antall dager tilbake (default 7)" },
+          },
+        },
+        handler: async (input: unknown) => {
+          const { days } = (input as { days?: number }) ?? {};
+          return getRecentRuns(days ?? 7);
+        },
+      },
+      {
+        name: "get_all_agent_memory",
+        description: "Les hva Nova, Hermes og Titan har lært",
+        inputSchema: {
+          type: "object",
+          properties: {
+            agentId: { type: "string", description: "nova, hermes, titan, eller blank for alle" },
+          },
+        },
+        handler: async (input: unknown) => {
+          const { agentId } = (input as { agentId?: string }) ?? {};
+          if (agentId) return getAllMemory(agentId);
+          const [nova, hermes, titan] = await Promise.all([
+            getAllMemory("nova"),
+            getAllMemory("hermes"),
+            getAllMemory("titan"),
+          ]);
+          return { nova, hermes, titan };
+        },
+      },
+      {
+        name: "get_artifacts",
+        description: "Hent de siste agent-rapportene (Rex, Scribe, Lens, Oracle)",
+        inputSchema: {
+          type: "object",
+          properties: {
+            limit: { type: "number", description: "Maks antall (default 10)" },
+          },
+        },
+        handler: async (input: unknown) => {
+          const { limit } = (input as { limit?: number }) ?? {};
+          return db.query.artifacts.findMany({
+            where: eq(schema.artifacts.orgId, DEFAULT_ORG_ID),
+            orderBy: [desc(schema.artifacts.createdAt)],
+            limit: limit ?? 10,
+          });
+        },
+      },
+      {
+        name: "search_market",
+        description: "Søk etter markedsinformasjon, konkurrenter eller trender",
+        inputSchema: {
+          type: "object",
+          properties: {
+            queries: {
+              type: "array",
+              items: { type: "string" },
+              description: "Liste med søkestrenger",
+            },
+          },
+          required: ["queries"],
+        },
+        handler: async (input: unknown) => {
+          const { queries } = input as { queries: string[] };
+          // Convert array to Record so searchMany is satisfied
+          const queryMap = Object.fromEntries(queries.map((q, i) => [`q${i}`, q]));
+          return searchMany(queryMap, { maxResults: 3 });
+        },
+      },
+      {
+        name: "create_strategy_proposal",
+        description: "Lagre et strategiforslag som Markus ser i dashboardet",
+        inputSchema: {
+          type: "object",
+          properties: {
+            title: { type: "string" },
+            summary: { type: "string" },
+            proposals: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  area: { type: "string" },
+                  problem: { type: "string" },
+                  suggestion: { type: "string" },
+                  priority: { type: "string", enum: ["high", "medium", "low"] },
+                },
+                required: ["area", "problem", "suggestion", "priority"],
+              },
+            },
+          },
+          required: ["title", "summary", "proposals"],
+        },
+        handler: async (input: unknown) => {
+          const { title, summary, proposals } = input as {
+            title: string;
+            summary: string;
+            proposals: Array<{ area: string; problem: string; suggestion: string; priority: "high" | "medium" | "low" }>;
+          };
+          const id = await createStrategyProposal({ createdBy: "athena", title, summary, proposals });
+          return { ok: true, id };
+        },
+      },
+      {
+        name: "set_memory",
+        description: "Lagre strategisk kontekst for fremtidige refleksjoner",
+        inputSchema: {
+          type: "object",
+          properties: {
+            key: { type: "string" },
+            value: {},
+          },
+          required: ["key", "value"],
+        },
+        handler: async (input: unknown) => {
+          const { key, value } = input as { key: string; value: unknown };
+          await setMemory("athena", key, value);
+          return { ok: true };
+        },
+      },
+    ],
   };
 }
 
@@ -54,9 +201,9 @@ export class OracleAgent extends BaseAgent {
 Din jobb er å holde Markus og Athena oppdatert på hva som skjer i markedet.
 
 Du overvåker:
-- Konkurrenter til SvarAI (AI-resepsjonister, booking-software, telefonroboter)
+- Konkurrenter til SvarAI (AI-resepsjonister, booking-software, telefonroboter i Norge)
 - Markedssignaler (nye investeringer, produktlanseringer, priser)
-- Industritrender (AI i helsesektoren, klinikk-automatisering)
+- Industritrender (AI i helsesektoren, klinikk-automatisering i Norden)
 - Potensielle trusler og muligheter
 
 Du leverer daglig:

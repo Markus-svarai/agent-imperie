@@ -77,7 +77,12 @@ export const cipherReviewer = inngest.createFunction(
       )
     );
 
-    const godkjent = output.summary.includes("✅ GODKJENT") || output.summary.toLowerCase().includes("godkjent");
+    const summaryLower = output.summary.toLowerCase();
+    const godkjent =
+      (output.summary.includes("✅") || summaryLower.includes("godkjent") || summaryLower.includes("approved")) &&
+      !summaryLower.includes("ikke godkjent") &&
+      !summaryLower.includes("avvist") &&
+      !summaryLower.includes("endringer kreves");
 
     if (godkjent) {
       await step.run("send-til-sentinel", async () => {
@@ -140,6 +145,38 @@ export const patchInfraCheck = inngest.createFunction(
     await step.run("lagre-kjøring", () => persistRun(output));
 
     return { runId, rapport: output.summary, usage: output.usage, logs };
+  }
+);
+
+// ─── Forge — revisjon etter Cipher-avvisning ─────────────────────────────
+
+export const forgeRevisjon = inngest.createFunction(
+  { id: "forge-revisjon", name: "Forge · Revisjon etter Cipher-avvisning", retries: 2 },
+  { event: "cipher/review.rejected" },
+  async ({ event, step }) => {
+    const { ctx, runId, logs, persistRun } = makeCtx("forge");
+    const { kode, feedback } = event.data as { kode: string; feedback: string };
+
+    const output = await step.run("forge-reviderer", () =>
+      forge.run(
+        {
+          message: `Cipher avviste koden din med følgende tilbakemelding:\n\n${feedback}\n\nOriginal kode:\n${kode}\n\nRevider koden basert på tilbakemeldingen.`,
+        },
+        ctx
+      )
+    );
+
+    // Send revidert kode tilbake til Cipher
+    await step.run("send-revidert-til-cipher", async () => {
+      await inngest.send({
+        name: "forge/code.ready",
+        data: { kode: output.summary, forgeRunId: runId, spec: `Revisjon etter Cipher-feedback: ${feedback}` },
+      });
+    });
+
+    await step.run("lagre-kjøring", () => persistRun(output, "event"));
+
+    return { runId, revisjon: output.summary, usage: output.usage, logs };
   }
 );
 

@@ -14,8 +14,9 @@ function modelToCost(model: string): { input: number; output: number } {
 /**
  * Factory — builds a fresh AgentContext + collects logs in-memory.
  * Also returns `persistRun` to save the completed run to Supabase.
+ * Pass parentRunId to link this run to the triggering run for traceability.
  */
-export function makeCtx(agentId: string) {
+export function makeCtx(agentId: string, parentRunId?: string) {
   const runId = `${agentId}-${Date.now()}`;
   const logs: Array<{ type: string; ts: string; [k: string]: unknown }> = [];
   const startedAt = new Date();
@@ -70,6 +71,7 @@ export function makeCtx(agentId: string) {
         inputTokens,
         outputTokens,
         costMicroUsd,
+        parentRunId: parentRunId ?? null,
       });
 
       // Slack: notify on manual triggers always, or when anomaly detected

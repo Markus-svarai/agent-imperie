@@ -3,6 +3,11 @@ import { makeCtx, dagsDato } from "../utils";
 import { TitanAgent } from "@/lib/agents/sales";
 import { PulseAgent } from "@/lib/agents/sales";
 import { RexAgent } from "@/lib/agents/sales";
+import { appendMemory } from "@/lib/tools/memory";
+import { notifySlack } from "@/lib/notify/slack";
+import { db, schema } from "@/lib/db";
+import { and, eq, lte, inArray } from "drizzle-orm";
+import { DEFAULT_ORG_ID } from "@/lib/db/constants";
 
 const titan = new TitanAgent();
 const pulse = new PulseAgent();
@@ -32,7 +37,8 @@ export const titanOppfolgingEtterHermes = inngest.createFunction(
   { id: "titan-etter-hermes", name: "Titan · Oppfølging etter outreach", retries: 1 },
   { event: "hermes/outreach.sent" },
   async ({ event, step }) => {
-    const { ctx, runId, logs, persistRun } = makeCtx("titan");
+    const hermesRunId = event.data.hermesRunId as string | undefined;
+    const { ctx, runId, logs, persistRun } = makeCtx("titan", hermesRunId);
     const output = await step.run("titan-planlegger-oppfolging", () =>
       titan.run(
         {
@@ -91,6 +97,98 @@ export const rexUkesanalyse = inngest.createFunction(
     await step.run("lagre-kjøring", () => persistRun(output));
 
     return { runId, analyse: output.summary, artifacts: output.artifacts, usage: output.usage, logs };
+  }
+);
+
+// ─── No-reply timeout — daglig kl. 06:30 ─────────────────────────────────
+// Finner leads som ikke har svart på 7+ dager, markerer dem og lærer Nova
+
+export const noReplyTimeout = inngest.createFunction(
+  { id: "no-reply-timeout", name: "Pipeline · No-reply timeout", retries: 2 },
+  { cron: "30 6 * * 1-5" },
+  async ({ step }) => {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 7);
+
+    // Find stale contacted leads
+    const staleLeads = await step.run("finn-stale-leads", () =>
+      db.query.leads.findMany({
+        where: and(
+          eq(schema.leads.orgId, DEFAULT_ORG_ID),
+          inArray(schema.leads.status, ["contacted"]),
+          lte(schema.leads.lastContactedAt, cutoff)
+        ),
+        limit: 50,
+      })
+    );
+
+    if (staleLeads.length === 0) return { noReply: 0 };
+
+    // Update status to no_reply
+    await step.run("oppdater-status", () =>
+      db
+        .update(schema.leads)
+        .set({ status: "no_reply", updatedAt: new Date() })
+        .where(
+          and(
+            eq(schema.leads.orgId, DEFAULT_ORG_ID),
+            inArray(schema.leads.id, staleLeads.map((l) => l.id))
+          )
+        )
+    );
+
+    // Log patterns to Nova's memory so it learns what's not working
+    for (const lead of staleLeads) {
+      await step.run(`logg-memory-${lead.id}`, () =>
+        appendMemory("nova", "no_reply_patterns", {
+          specialty: lead.specialty,
+          location: lead.location,
+          source: lead.source,
+          fitScore: lead.fitScore,
+          daysSinceContact: Math.floor((Date.now() - (lead.lastContactedAt ? new Date(lead.lastContactedAt).getTime() : Date.now())) / 86400000),
+        })
+      );
+    }
+
+    // Fire event for Titan to decide if any deserve a follow-up
+    await step.run("varsle-titan", () =>
+      inngest.send({
+        name: "pipeline/no-reply.detected",
+        data: {
+          count: staleLeads.length,
+          leads: staleLeads.map((l) => ({
+            id: l.id,
+            companyName: l.companyName,
+            specialty: l.specialty,
+            location: l.location,
+          })),
+        },
+      })
+    );
+
+    return { noReply: staleLeads.length, companies: staleLeads.map((l) => l.companyName) };
+  }
+);
+
+// Titan vurderer om no-reply leads fortjener én siste oppfølging
+export const titanVurdererNoReply = inngest.createFunction(
+  { id: "titan-vurderer-no-reply", name: "Titan · Vurderer no-reply leads", retries: 1 },
+  { event: "pipeline/no-reply.detected" },
+  async ({ event, step }) => {
+    const { ctx, runId, logs, persistRun } = makeCtx("titan");
+    const { leads, count } = event.data as { count: number; leads: Array<{ id: string; companyName: string; specialty: string; location: string }> };
+
+    const output = await step.run("titan-vurderer", () =>
+      titan.run(
+        {
+          message: `${count} leads har ikke svart på 7+ dager og er nå markert som no_reply:\n\n${leads.map((l) => `- ${l.companyName} (${l.specialty}, ${l.location})`).join("\n")}\n\nVurder: hvilke av disse fortjener én siste oppfølging med ny vinkel? For de som ikke gjør det — la dem ligge. Bruk din hukommelse om hva som virker.`,
+        },
+        ctx
+      )
+    );
+
+    await step.run("lagre-kjøring", () => persistRun(output, "event"));
+    return { runId, vurdering: output.summary, usage: output.usage, logs };
   }
 );
 

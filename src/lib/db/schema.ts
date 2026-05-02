@@ -298,6 +298,7 @@ export const leadStatusEnum = pgEnum("lead_status", [
   "demo_booked",
   "customer",
   "not_interested",
+  "no_reply",       // contacted but no response after 7 days
   "unsubscribed",
 ]);
 
@@ -382,6 +383,66 @@ export const events = pgTable(
   })
 );
 
+// ---------- agent memory (long-term learnings per agent) ----------
+
+export const agentMemory = pgTable(
+  "agent_memory",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => orgs.id, { onDelete: "cascade" }),
+    /** agent name, e.g. "nova", "hermes", "titan" */
+    agentId: text("agent_id").notNull(),
+    /** e.g. "rejection_patterns", "successful_approaches", "icp_learnings" */
+    key: text("key").notNull(),
+    /** the actual learning — array, object, or string */
+    value: jsonb("value").notNull(),
+    /** 0.0–1.0 — how confident is the agent in this memory */
+    confidence: numeric("confidence", { precision: 3, scale: 2 }).default("1.0"),
+    /** which run generated/updated this memory */
+    sourceRunId: uuid("source_run_id"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => ({
+    orgAgentKeyIdx: index("memory_org_agent_key_idx").on(t.orgId, t.agentId, t.key),
+    agentIdx: index("memory_agent_idx").on(t.agentId),
+  })
+);
+
+// ---------- strategy proposals (Athena's ideas for Markus) ----------
+
+export const strategyProposals = pgTable(
+  "strategy_proposals",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => orgs.id, { onDelete: "cascade" }),
+    createdBy: text("created_by").notNull(), // agent name
+    runId: uuid("run_id").references(() => agentRuns.id, { onDelete: "set null" }),
+    title: text("title").notNull(),
+    summary: text("summary").notNull(),
+    /** [{area, problem, suggestion, priority: "high"|"medium"|"low"}] */
+    proposals: jsonb("proposals").$type<Array<{
+      area: string;
+      problem: string;
+      suggestion: string;
+      priority: "high" | "medium" | "low";
+    }>>().default([]),
+    /** "pending" | "reviewed" | "implemented" | "dismissed" */
+    status: text("status").notNull().default("pending"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => ({
+    orgIdx: index("proposals_org_idx").on(t.orgId),
+    statusIdx: index("proposals_status_idx").on(t.status),
+    createdIdx: index("proposals_created_idx").on(t.createdAt),
+  })
+);
+
 // ---------- relations ----------
 
 export const orgsRelations = relations(orgs, ({ many }) => ({
@@ -458,3 +519,5 @@ export type Event = typeof events.$inferSelect;
 export type Lead = typeof leads.$inferSelect;
 export type NewLead = typeof leads.$inferInsert;
 export type OutreachEmail = typeof outreachEmails.$inferSelect;
+export type AgentMemory = typeof agentMemory.$inferSelect;
+export type StrategyProposal = typeof strategyProposals.$inferSelect;

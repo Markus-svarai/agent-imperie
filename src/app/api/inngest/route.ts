@@ -21,18 +21,21 @@ import {
   forgeImplementerer, forgeManuelOppdrag,
   cipherReviewer, sentinelQA,
   patchInfraCheck, patchReagerSikkerhet,
+  forgeRevisjon,
 } from "@/lib/inngest/functions/engineering";
 
 // Sales
 import {
   titanDagligOppfolging, titanOppfolgingEtterHermes, titanReagerPaaSvar,
   pulsePipelineHygiene, rexUkesanalyse,
+  noReplyTimeout, titanVurdererNoReply,
 } from "@/lib/inngest/functions/sales";
 
 // Marketing
 import {
   beaconSeoAnalyse, museSkriverInnhold, museReagerPaaBeacon,
   prismReviewer, prismReviewerOutreach, echoDistribuerer,
+  museRevisjon,
 } from "@/lib/inngest/functions/marketing";
 
 // Analytics
@@ -53,7 +56,10 @@ import {
 } from "@/lib/inngest/functions/research";
 
 // Notifications
-import { dailyDigest } from "@/lib/inngest/functions/notifications";
+import { dailyDigest, dealClosedVarsling } from "@/lib/inngest/functions/notifications";
+
+// Hermes
+import { hermesLaererAvScribe } from "@/lib/inngest/functions/hermes";
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
@@ -72,14 +78,17 @@ export const { GET, POST, PUT } = serve({
     forgeImplementerer, forgeManuelOppdrag,
     cipherReviewer, sentinelQA,
     patchInfraCheck, patchReagerSikkerhet,
+    forgeRevisjon,
 
     // ── Sales ────────────────────────────────────────────────────────────
     titanDagligOppfolging, titanOppfolgingEtterHermes, titanReagerPaaSvar,
     pulsePipelineHygiene, rexUkesanalyse,
+    noReplyTimeout, titanVurdererNoReply,
 
     // ── Marketing ────────────────────────────────────────────────────────
     beaconSeoAnalyse, museSkriverInnhold, museReagerPaaBeacon,
     prismReviewer, prismReviewerOutreach, echoDistribuerer,
+    museRevisjon,
 
     // ── Analytics ────────────────────────────────────────────────────────
     lensDagligKpis, sageUkesrapport, quillDagligSyntese,
@@ -95,6 +104,9 @@ export const { GET, POST, PUT } = serve({
     atlasTekniskResearch, siloByggerKunnskapsbase, siloLoggBeslutning,
 
     // ── Notifications ─────────────────────────────────────────────────────
-    dailyDigest,
+    dailyDigest, dealClosedVarsling,
+
+    // ── Cross-agent learning ──────────────────────────────────────────────
+    hermesLaererAvScribe,
   ],
 });

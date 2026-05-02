@@ -2,6 +2,7 @@ import { inngest } from "../client";
 import { makeCtx } from "../utils";
 import { ScribeAgent } from "@/lib/agents/scribe";
 
+
 const scribe = new ScribeAgent();
 
 export const scribeUkesanalyse = inngest.createFunction(
@@ -16,6 +17,14 @@ export const scribeUkesanalyse = inngest.createFunction(
 
     const output = await step.run("scribe-analyserer", async () => {
       return scribe.run({}, ctx);
+    });
+
+    // Fire patterns event so Hermes can update its outreach memory
+    await step.run("del-funn-med-hermes", async () => {
+      await inngest.send({
+        name: "scribe/patterns.found",
+        data: { patterns: output.summary, dato: new Date().toISOString() },
+      });
     });
 
     await step.run("lagre-kjøring", () => persistRun(output));

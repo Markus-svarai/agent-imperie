@@ -8,9 +8,11 @@ import { BaseAgent } from "./base";
 import type { AgentDefinition } from "./types";
 import { sendOutreachEmail, getRepliedLeads, getPendingLeads } from "@/lib/tools/send-outreach";
 import { getPipelineStats } from "@/lib/tools/find-clinics";
+import { getAllMemory, setMemory, appendMemory } from "@/lib/tools/memory";
 import { db, schema } from "@/lib/db";
 import { eq } from "drizzle-orm";
 import { DEFAULT_ORG_ID } from "@/lib/db/constants";
+import { inngest } from "@/lib/inngest/client";
 
 // ─── Titan — Deal Closer ──────────────────────────────────────────────────
 
@@ -55,6 +57,29 @@ Skriv på norsk. Vær direkte, varm og løsningsorientert.`,
         description: "Hent nåværende pipeline-status — kall dette først i hver kjøring",
         inputSchema: { type: "object", properties: {} },
         handler: async () => getPipelineStats(),
+      },
+      {
+        name: "get_all_memory",
+        description: "Les hva Titan har lært om innvendinger og hva som lukker deals",
+        inputSchema: { type: "object", properties: {} },
+        handler: async () => getAllMemory("titan"),
+      },
+      {
+        name: "append_memory",
+        description: "Logg en innvending du møtte eller en respons som fungerte",
+        inputSchema: {
+          type: "object",
+          properties: {
+            key: { type: "string", description: "'objections', 'winning_responses', 'deal_closed', 'deal_lost'" },
+            item: {},
+          },
+          required: ["key", "item"],
+        },
+        handler: async (input: unknown) => {
+          const { key, item } = input as { key: string; item: unknown };
+          await appendMemory("titan", key, item);
+          return { ok: true };
+        },
       },
       {
         name: "get_replied_leads",
@@ -113,6 +138,13 @@ Skriv på norsk. Vær direkte, varm og løsningsorientert.`,
             status: string;
             notes?: string;
           };
+
+          // Fetch lead name before updating for event payload
+          const lead = await db.query.leads.findFirst({
+            where: eq(schema.leads.id, leadId),
+            columns: { companyName: true, specialty: true, location: true },
+          });
+
           await db
             .update(schema.leads)
             .set({
@@ -121,6 +153,21 @@ Skriv på norsk. Vær direkte, varm og løsningsorientert.`,
               updatedAt: new Date(),
             })
             .where(eq(schema.leads.id, leadId));
+
+          // Fire deal.closed when a demo is booked — triggers celebration + digest
+          if (status === "demo_booked" && lead) {
+            await inngest.send({
+              name: "titan/deal.closed",
+              data: {
+                leadId,
+                companyName: lead.companyName,
+                specialty: lead.specialty,
+                location: lead.location,
+                closedAt: new Date().toISOString(),
+              },
+            });
+          }
+
           return { ok: true };
         },
       },

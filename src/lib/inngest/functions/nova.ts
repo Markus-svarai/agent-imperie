@@ -20,11 +20,11 @@ export const novaProspektering = inngest.createFunction(
 
     await step.run("lagre-kjøring", () => persistRun(output));
 
-    // Trigger Hermes med leadlisten
+    // Trigger Hermes med leadlisten — send novaRunId for traceability
     await step.run("trigger-hermes", async () => {
       await inngest.send({
         name: "nova/leads.ready",
-        data: { leadliste: output.summary, runId, dato: new Date().toISOString() },
+        data: { leadliste: output.summary, novaRunId: runId, dato: new Date().toISOString() },
       });
     });
 
