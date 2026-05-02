@@ -93,7 +93,7 @@ Skriv på norsk. Vær direkte og ærlig — ikke ros det som ikke virker.`,
       },
       {
         name: "get_artifacts",
-        description: "Hent agent-rapporter. Filtrer på agentNavn (f.eks. 'Rex', 'Scribe', 'Lens'), type ('report', 'analysis', 'prospect_list', 'outreach', 'alert'), eller dager tilbake.",
+        description: "Hent agent-rapporter. Filtrer på agentNavn (f.eks. 'Rex', 'Scribe', 'Lens'), type ('report', 'summary', 'prospect_list', 'outreach_message', 'alert', 'code_diff', 'other'), eller dager tilbake.",
         inputSchema: {
           type: "object",
           properties: {

@@ -17,18 +17,22 @@ interface Artifact {
 
 const TYPE_ICONS: Record<string, React.ElementType> = {
   report: BarChart2,
-  analysis: BarChart2,
+  summary: BarChart2,
   prospect_list: List,
-  outreach: Mail,
+  outreach_message: Mail,
   alert: AlertCircle,
+  code_diff: FileText,
+  other: FileText,
 };
 
 const TYPE_LABELS: Record<string, string> = {
   report: "Rapport",
-  analysis: "Analyse",
+  summary: "Sammendrag",
   prospect_list: "Prospektliste",
-  outreach: "Outreach",
+  outreach_message: "Outreach",
   alert: "Varsel",
+  code_diff: "Kodeendring",
+  other: "Annet",
 };
 
 const DEPT_COLORS: Record<string, string> = {
@@ -42,7 +46,7 @@ const DEPT_COLORS: Record<string, string> = {
   research: "text-cyan-400",
 };
 
-const FILTERS = ["Alle", "report", "analysis", "prospect_list", "outreach", "alert"];
+const FILTERS = ["Alle", "report", "summary", "prospect_list", "outreach_message", "alert", "code_diff"];
 
 export default function ArtifactsPage() {
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);

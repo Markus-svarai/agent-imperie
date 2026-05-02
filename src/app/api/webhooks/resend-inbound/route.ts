@@ -159,8 +159,9 @@ function extractHeader(
   if (Array.isArray(headers)) {
     return headers.find((h) => h.name.toLowerCase() === lower)?.value ?? null;
   }
-  // Flat object — try both original and lower-cased key
-  return headers[name] ?? headers[lower] ?? null;
+  // Flat object — case-insensitive key lookup (JS keys are case-sensitive)
+  const entry = Object.entries(headers).find(([k]) => k.toLowerCase() === lower);
+  return entry?.[1] ?? null;
 }
 
 function extractEmail(from: string): string {
