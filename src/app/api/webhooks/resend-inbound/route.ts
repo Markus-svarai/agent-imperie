@@ -23,7 +23,6 @@ interface ResendEmailData {
 interface ResendWebhookPayload {
   type?: string;
   data?: ResendEmailData;
-  // flat format fallback
   from?: string;
   to?: string | string[];
   subject?: string;
@@ -33,88 +32,109 @@ interface ResendWebhookPayload {
 }
 
 export async function POST(req: NextRequest) {
+  // Always return 200 to Resend — never let it retry
+  let fromEmail = "unknown";
+  let matchedLeadId: string | null = null;
+
   try {
     const raw = await req.json() as ResendWebhookPayload;
+    console.log("[resend-inbound] payload type:", raw.type ?? "flat");
 
     // Ignore non-email events
     if (raw.type && raw.type !== "email.received") {
+      console.log("[resend-inbound] skipping event type:", raw.type);
       return NextResponse.json({ ok: true, skipped: raw.type });
     }
 
     // Unwrap envelope or use flat format
     const email: ResendEmailData = raw.data ?? raw;
 
-    // Safety guards — always return 200 to Resend
-    if (!email || !email.from) {
-      console.warn("[resend-inbound] Mangler email.from — ignorerer");
+    if (!email?.from) {
+      console.warn("[resend-inbound] mangler from-felt — ignorerer");
       return NextResponse.json({ ok: true, warning: "no_from" });
     }
 
-    const fromEmail = extractEmail(email.from);
+    fromEmail = extractEmail(email.from);
     const subject = email.subject ?? "(uten emne)";
-    const body = email.text ?? stripHtml(email.html ?? "");
+    const body = (email.text ?? stripHtml(email.html ?? "")).slice(0, 2000);
     const leadId = extractHeader(email.headers, "x-lead-id");
 
-    const parsed = { fromEmail, subject, body: body.slice(0, 500), leadId };
-    console.log("[resend-inbound] received:", parsed);
+    console.log(`[resend-inbound] fra=${fromEmail} emne="${subject}" leadId=${leadId}`);
 
-    // Match lead by X-Lead-Id or sender email
-    let matchedLeadId = leadId;
-    if (!matchedLeadId && fromEmail) {
-      const lead = await db.query.leads.findFirst({
-        where: and(
-          eq(schema.leads.orgId, DEFAULT_ORG_ID),
-          eq(schema.leads.email, fromEmail)
-        ),
-      });
-      matchedLeadId = lead?.id ?? null;
-    }
-
-    // Log inbound email
-    await db.insert(schema.outreachEmails).values({
-      orgId: DEFAULT_ORG_ID,
-      leadId: matchedLeadId,
-      direction: "inbound",
-      fromEmail,
-      toEmail: Array.isArray(email.to) ? email.to[0] : (email.to ?? "replies@svarai.no"),
-      subject,
-      body,
-      sentAt: new Date(),
-    });
-
-    // Bump lead status if currently contactable
-    if (matchedLeadId) {
-      const lead = await db.query.leads.findFirst({
-        where: eq(schema.leads.id, matchedLeadId),
-        columns: { status: true },
-      });
-      if (lead && ["contacted", "no_reply", "new"].includes(lead.status)) {
-        await db
-          .update(schema.leads)
-          .set({ status: "replied", updatedAt: new Date() })
-          .where(eq(schema.leads.id, matchedLeadId));
+    // DB: match lead
+    matchedLeadId = leadId;
+    if (!matchedLeadId) {
+      try {
+        const lead = await db.query.leads.findFirst({
+          where: and(
+            eq(schema.leads.orgId, DEFAULT_ORG_ID),
+            eq(schema.leads.email, fromEmail)
+          ),
+        });
+        matchedLeadId = lead?.id ?? null;
+      } catch (dbErr) {
+        console.error("[resend-inbound] DB lead-lookup feil:", dbErr);
       }
     }
 
-    // Trigger Titan via Inngest
-    await inngest.send({
-      name: "email/reply.received",
-      data: {
-        from: fromEmail,
-        subject,
-        text: body,
+    // DB: log inbound email (non-blocking)
+    try {
+      await db.insert(schema.outreachEmails).values({
+        orgId: DEFAULT_ORG_ID,
         leadId: matchedLeadId,
-        raw: email,
-      },
-    });
+        direction: "inbound",
+        fromEmail,
+        toEmail: Array.isArray(email.to) ? email.to[0] : (email.to ?? "replies@svarai.no"),
+        subject,
+        body,
+        sentAt: new Date(),
+      });
+    } catch (dbErr) {
+      console.error("[resend-inbound] DB insert feil:", dbErr);
+      // Continue — still want to trigger Titan
+    }
 
-    console.log("[resend-inbound] event sent to inngest");
-    console.log(`[resend-inbound] OK — fra=${fromEmail} leadId=${matchedLeadId}`);
-    return NextResponse.json({ ok: true });
+    // DB: bump lead status (non-blocking)
+    if (matchedLeadId) {
+      try {
+        const lead = await db.query.leads.findFirst({
+          where: eq(schema.leads.id, matchedLeadId),
+          columns: { status: true },
+        });
+        if (lead && ["contacted", "no_reply", "new"].includes(lead.status)) {
+          await db
+            .update(schema.leads)
+            .set({ status: "replied", updatedAt: new Date() })
+            .where(eq(schema.leads.id, matchedLeadId));
+          console.log(`[resend-inbound] lead ${matchedLeadId} → replied`);
+        }
+      } catch (dbErr) {
+        console.error("[resend-inbound] DB status-bump feil:", dbErr);
+      }
+    }
+
+    // Trigger Titan — separate try/catch so DB errors don't block this
+    try {
+      console.log("[resend-inbound] sender event til Inngest...");
+      await inngest.send({
+        name: "email/reply.received",
+        data: {
+          from: fromEmail,
+          subject,
+          text: body,
+          leadId: matchedLeadId,
+        },
+      });
+      console.log("Titan triggered ✅");
+    } catch (inngestErr) {
+      console.error("[resend-inbound] INNGEST SEND FEIL:", inngestErr);
+      // Still return 200 to Resend
+    }
+
+    return NextResponse.json({ ok: true, from: fromEmail, leadId: matchedLeadId });
 
   } catch (err) {
-    // Never let Resend retry storm — always 200
-    console.error("[resend-inbound] Feil:", err);
+    console.error("[resend-inbound] Uventet feil:", err);
     return NextResponse.json({ ok: false, error: String(err) });
   }
 }
