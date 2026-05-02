@@ -10,10 +10,10 @@ type ProposalStatus = typeof VALID_STATUSES[number];
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const body = await req.json() as { status: string };
 
     if (!VALID_STATUSES.includes(body.status as ProposalStatus)) {
