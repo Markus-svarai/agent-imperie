@@ -96,12 +96,19 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Trigger Titan
+    // Trigger Titan via Inngest
     await inngest.send({
       name: "email/reply.received",
-      data: { fromEmail, subject, body, leadId: matchedLeadId },
+      data: {
+        from: fromEmail,
+        subject,
+        text: body,
+        leadId: matchedLeadId,
+        raw: email,
+      },
     });
 
+    console.log("[resend-inbound] event sent to inngest");
     console.log(`[resend-inbound] OK — fra=${fromEmail} leadId=${matchedLeadId}`);
     return NextResponse.json({ ok: true });
 
