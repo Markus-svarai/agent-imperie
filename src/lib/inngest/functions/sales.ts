@@ -19,7 +19,10 @@ export const titanDagligOppfolging = inngest.createFunction(
   { id: "titan-daglig-oppfolging", name: "Titan · Daglig oppfølgingsplan", retries: 1 },
   { cron: "0 8 * * 1-5" },
   async ({ step }) => {
-    const { ctx, runId, logs, persistRun } = makeCtx("titan");
+    const { ctx, runId, logs, persistRun, isHalted } = makeCtx("titan");
+    if (await step.run("sjekk-kill-switch", isHalted)) {
+      return { skipped: true, reason: "system_disabled" };
+    }
     const output = await step.run("titan-planlegger", () =>
       titan.run(
         { message: `Det er ${dagsDato()}. Hvilke prospects bør Markus følge opp i dag? Lever konkret oppfølgingsplan.` },

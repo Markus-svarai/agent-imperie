@@ -6,8 +6,10 @@
  */
 
 import { db, schema } from "@/lib/db";
-import { eq } from "drizzle-orm";
+import { eq, and, gte, count } from "drizzle-orm";
 import { DEFAULT_ORG_ID } from "@/lib/db/constants";
+
+const DAILY_OUTREACH_LIMIT = Number(process.env.DAILY_OUTREACH_LIMIT ?? "10");
 
 const FROM_EMAIL = process.env.OUTREACH_FROM_EMAIL ?? "hei@svarai.no";
 const FROM_NAME = process.env.OUTREACH_FROM_NAME ?? "Markus – SvarAI";
@@ -27,6 +29,24 @@ export interface SendOutreachResult {
   error?: string;
 }
 
+/** How many outbound emails were sent today */
+export async function getDailyOutboundCount(): Promise<number> {
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  const result = await db
+    .select({ total: count() })
+    .from(schema.outreachEmails)
+    .where(
+      and(
+        eq(schema.outreachEmails.orgId, DEFAULT_ORG_ID),
+        eq(schema.outreachEmails.direction, "outbound"),
+        gte(schema.outreachEmails.sentAt, todayStart)
+      )
+    );
+  return result[0]?.total ?? 0;
+}
+
 /** Send an outreach email via Resend */
 export async function sendOutreachEmail(
   input: SendOutreachInput
@@ -35,6 +55,16 @@ export async function sendOutreachEmail(
   if (!apiKey) {
     console.warn("[sendOutreach] RESEND_API_KEY ikke satt");
     return { ok: false, error: "RESEND_API_KEY ikke konfigurert" };
+  }
+
+  // Rate limit: max N outbound emails per day
+  const sentToday = await getDailyOutboundCount();
+  if (sentToday >= DAILY_OUTREACH_LIMIT) {
+    console.warn(`[sendOutreach] Daglig grense nådd (${sentToday}/${DAILY_OUTREACH_LIMIT})`);
+    return {
+      ok: false,
+      error: `Daglig grense nådd: ${sentToday}/${DAILY_OUTREACH_LIMIT} e-poster sendt i dag. Prøv igjen i morgen.`,
+    };
   }
 
   try {

@@ -10,7 +10,7 @@ import { searchMany } from "@/lib/tools/search";
 import { getPipelineStats } from "@/lib/tools/find-clinics";
 import { getRecentRuns, getAllMemory, getPendingProposals, createStrategyProposal, setMemory } from "@/lib/tools/memory";
 import { db, schema } from "@/lib/db";
-import { eq, desc, gte } from "drizzle-orm";
+import { eq, desc, gte, and } from "drizzle-orm";
 import { DEFAULT_ORG_ID } from "@/lib/db/constants";
 
 // ─── Athena — Chief Strategy Officer ────────────────────────────────────────
@@ -93,19 +93,51 @@ Skriv på norsk. Vær direkte og ærlig — ikke ros det som ikke virker.`,
       },
       {
         name: "get_artifacts",
-        description: "Hent de siste agent-rapportene (Rex, Scribe, Lens, Oracle)",
+        description: "Hent agent-rapporter. Filtrer på agentNavn (f.eks. 'Rex', 'Scribe', 'Lens'), type ('report', 'analysis', 'prospect_list', 'outreach', 'alert'), eller dager tilbake.",
         inputSchema: {
           type: "object",
           properties: {
-            limit: { type: "number", description: "Maks antall (default 10)" },
+            agentName: { type: "string", description: "Filtrer på agent-navn, f.eks. 'Rex'" },
+            type: { type: "string", description: "Filtrer på artifact-type" },
+            days: { type: "number", description: "Hent artifacts fra siste N dager (default: alle)" },
+            limit: { type: "number", description: "Maks antall resultater (default 20)" },
           },
         },
         handler: async (input: unknown) => {
-          const { limit } = (input as { limit?: number }) ?? {};
+          const { agentName, type, days, limit } = (input as {
+            agentName?: string;
+            type?: string;
+            days?: number;
+            limit?: number;
+          }) ?? {};
+
+          // Build WHERE conditions
+          const conditions = [eq(schema.artifacts.orgId, DEFAULT_ORG_ID)];
+
+          if (type) {
+            conditions.push(eq(schema.artifacts.type, type as typeof schema.artifacts.$inferSelect.type));
+          }
+          if (days) {
+            const cutoff = new Date();
+            cutoff.setDate(cutoff.getDate() - days);
+            conditions.push(gte(schema.artifacts.createdAt, cutoff));
+          }
+
+          // If filtering by agent name, join to get agent ID first
+          if (agentName) {
+            const agent = await db.query.agents.findFirst({
+              where: eq(schema.agents.name, agentName),
+              columns: { id: true },
+            });
+            if (agent) {
+              conditions.push(eq(schema.artifacts.agentId, agent.id));
+            }
+          }
+
           return db.query.artifacts.findMany({
-            where: eq(schema.artifacts.orgId, DEFAULT_ORG_ID),
+            where: and(...conditions),
             orderBy: [desc(schema.artifacts.createdAt)],
-            limit: limit ?? 10,
+            limit: limit ?? 20,
           });
         },
       },

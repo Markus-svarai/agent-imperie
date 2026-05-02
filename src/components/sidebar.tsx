@@ -10,17 +10,19 @@ import {
   Bell,
   Settings,
   Sparkles,
+  Crown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const NAV = [
+const NAV: Array<{ href: string; label: string; icon: React.ElementType }> = [
   { href: "/dashboard", label: "Oversikt", icon: LayoutDashboard },
   { href: "/agents", label: "Agenter", icon: Users },
   { href: "/runs", label: "Kjøringer", icon: Activity },
   { href: "/artifacts", label: "Resultater", icon: FileText },
+  { href: "/proposals", label: "Athenas forslag", icon: Crown },
   { href: "/events", label: "Hendelser", icon: Bell },
   { href: "/settings", label: "Innstillinger", icon: Settings },
-] as const;
+];
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -52,7 +54,7 @@ export function Sidebar() {
           return (
             <Link
               key={item.href}
-              href={item.href}
+              href={item.href as "/dashboard"}
               className={cn(
                 "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors",
                 isActive

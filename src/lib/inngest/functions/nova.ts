@@ -12,7 +12,11 @@ export const novaProspektering = inngest.createFunction(
   },
   { cron: "0 7 * * 1-5" }, // Mandag-fredag kl 07:00
   async ({ step }) => {
-    const { ctx, runId, logs, persistRun } = makeCtx("nova");
+    const { ctx, runId, logs, persistRun, isHalted } = makeCtx("nova");
+
+    if (await step.run("sjekk-kill-switch", isHalted)) {
+      return { skipped: true, reason: "system_disabled" };
+    }
 
     const output = await step.run("nova-prospektering", async () => {
       return nova.run({}, ctx);

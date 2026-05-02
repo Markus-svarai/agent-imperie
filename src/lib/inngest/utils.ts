@@ -12,6 +12,28 @@ function modelToCost(model: string): { input: number; output: number } {
 }
 
 /**
+ * Check if the global kill switch is active.
+ * Returns true if agents should run, false if halted.
+ * Reads from DB first; falls back to SYSTEM_ENABLED env var (default: true).
+ */
+export async function isSystemEnabled(): Promise<boolean> {
+  // Env override takes priority — useful for emergency stops without a DB round-trip
+  const envFlag = process.env.SYSTEM_ENABLED;
+  if (envFlag === "false") return false;
+
+  try {
+    const org = await db.query.orgs.findFirst({
+      where: eq(schema.orgs.id, DEFAULT_ORG_ID),
+      columns: { systemEnabled: true },
+    });
+    return org?.systemEnabled ?? true;
+  } catch {
+    // If DB check fails, default to enabled so we don't accidentally halt everything
+    return true;
+  }
+}
+
+/**
  * Factory — builds a fresh AgentContext + collects logs in-memory.
  * Also returns `persistRun` to save the completed run to Supabase.
  * Pass parentRunId to link this run to the triggering run for traceability.
@@ -29,6 +51,18 @@ export function makeCtx(agentId: string, parentRunId?: string) {
       logs.push({ type, ...payload, ts: new Date().toISOString() });
       return runId;
     },
+  };
+
+  /**
+   * Returns true if system is halted — call this BEFORE agent.run().
+   * Usage: if (await isHalted()) return { skipped: true };
+   */
+  const isHalted = async (): Promise<boolean> => {
+    const enabled = await isSystemEnabled();
+    if (!enabled) {
+      console.warn(`[${agentId}] System er deaktivert (kill switch). Hopper over kjøring.`);
+    }
+    return !enabled;
   };
 
   /**
@@ -95,7 +129,7 @@ export function makeCtx(agentId: string, parentRunId?: string) {
     }
   };
 
-  return { ctx, runId, logs, persistRun };
+  return { ctx, runId, logs, persistRun, isHalted };
 }
 
 /** Readable date string in Norwegian for use in prompts / artifact titles. */
