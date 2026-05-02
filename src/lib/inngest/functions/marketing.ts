@@ -1,5 +1,5 @@
 import { inngest } from "../client";
-import { makeCtx, dagsDato } from "../utils";
+import { makeCtx, dagsDato, safePayload } from "../utils";
 import { searchMany } from "@/lib/tools/search";
 import { MuseAgent } from "@/lib/agents/marketing";
 import { BeaconAgent } from "@/lib/agents/marketing";
@@ -101,10 +101,15 @@ export const museReagerPaaBeacon = inngest.createFunction(
   { id: "muse-beacon-triggered", name: "Muse · SEO-drevet innhold", retries: 1 },
   { event: "beacon/seo.ready" },
   async ({ event, step }) => {
+    const p = safePayload(event.data, ["anbefalinger"]);
+    if (!p.anbefalinger) {
+      console.warn("[muse] beacon/seo.ready mangler anbefalinger");
+      return { skipped: true, reason: "missing_anbefalinger" };
+    }
     const { ctx, runId, logs, persistRun } = makeCtx("muse");
     const output = await step.run("muse-skriver-seo", () =>
       muse.run(
-        { message: `Beacon anbefaler disse SEO-temaene:\n\n${event.data.anbefalinger as string}\n\nVelg det beste temaet og skriv innhold optimalisert for det.` },
+        { message: `Beacon anbefaler disse SEO-temaene:\n\n${p.anbefalinger}\n\nVelg det beste temaet og skriv innhold optimalisert for det.` },
         ctx
       )
     );
@@ -126,8 +131,13 @@ export const prismReviewer = inngest.createFunction(
   { id: "prism-reviewer", name: "Prism · Brand review", retries: 1 },
   { event: "muse/content.ready" },
   async ({ event, step }) => {
+    const p = safePayload(event.data, ["innhold", "museRunId"]);
+    if (!p.innhold) {
+      console.warn("[prism] muse/content.ready mangler innhold");
+      return { skipped: true, reason: "missing_innhold" };
+    }
     const { ctx, runId, logs, persistRun } = makeCtx("prism");
-    const innhold = event.data.innhold as string;
+    const innhold = p.innhold;
 
     const output = await step.run("prism-reviewerer", () =>
       prism.run(
@@ -201,8 +211,13 @@ export const museRevisjon = inngest.createFunction(
   { id: "muse-revisjon", name: "Muse · Revisjon etter Prism-avvisning", retries: 1 },
   { event: "prism/content.rejected" },
   async ({ event, step }) => {
+    const p = safePayload(event.data, ["innhold", "feedback"]);
+    if (!p.innhold || !p.feedback) {
+      console.warn("[muse] prism/content.rejected mangler innhold eller feedback");
+      return { skipped: true, reason: "missing_payload" };
+    }
     const { ctx, runId, logs, persistRun } = makeCtx("muse");
-    const { innhold, feedback } = event.data as { innhold: string; feedback: string };
+    const { innhold, feedback } = p;
 
     const output = await step.run("muse-reviderer", () =>
       muse.run(
@@ -233,8 +248,13 @@ export const echoDistribuerer = inngest.createFunction(
   { id: "echo-distribuerer", name: "Echo · Distribuerer innhold", retries: 2 },
   { event: "prism/content.approved" },
   async ({ event, step }) => {
+    const p = safePayload(event.data, ["innhold"]);
+    if (!p.innhold) {
+      console.warn("[echo] prism/content.approved mangler innhold");
+      return { skipped: true, reason: "missing_innhold" };
+    }
     const { ctx, runId, logs, persistRun } = makeCtx("echo");
-    const innhold = event.data.innhold as string;
+    const innhold = p.innhold;
 
     const output = await step.run("echo-tilpasser", () =>
       echo.run(

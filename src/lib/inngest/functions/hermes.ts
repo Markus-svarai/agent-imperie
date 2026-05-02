@@ -1,5 +1,5 @@
 import { inngest } from "../client";
-import { makeCtx } from "../utils";
+import { makeCtx, safePayload } from "../utils";
 import { HermesAgent } from "@/lib/agents/hermes";
 import { setMemory } from "@/lib/tools/memory";
 
@@ -14,12 +14,17 @@ export const hermesSkrivMeldinger = inngest.createFunction(
   },
   { event: "nova/leads.ready" },
   async ({ event, step }) => {
-    // Link this run back to the Nova run that triggered it
-    const novaRunId = event.data.novaRunId as string | undefined;
-    const { ctx, runId, logs, persistRun } = makeCtx("hermes", novaRunId);
+    const p = safePayload(event.data, ["novaRunId", "leadliste"]);
+    const { ctx, runId, logs, persistRun, isHalted } = makeCtx("hermes", p.novaRunId ?? undefined);
+    if (await step.run("sjekk-kill-switch", isHalted)) return { skipped: true };
+
+    if (!p.leadliste) {
+      console.warn("[hermes] nova/leads.ready mangler leadliste — hopper over");
+      return { skipped: true, reason: "missing_leadliste" };
+    }
 
     const output = await step.run("hermes-skriver", async () => {
-      return hermes.run({ data: { leadliste: event.data.leadliste } }, ctx);
+      return hermes.run({ data: { leadliste: p.leadliste } }, ctx);
     });
 
     // Fire event so Titan knows outreach was sent — pass hermesRunId for traceability

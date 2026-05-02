@@ -132,6 +132,24 @@ export function makeCtx(agentId: string, parentRunId?: string) {
   return { ctx, runId, logs, persistRun, isHalted };
 }
 
+/**
+ * Safe payload extractor for Inngest event handlers.
+ * Returns null for missing fields instead of crashing on undefined.
+ * Usage: const p = safePayload(event.data, ["from","subject","text"]);
+ */
+export function safePayload<T extends string>(
+  data: unknown,
+  fields: T[]
+): Record<T, string | null> {
+  const obj = (data ?? {}) as Record<string, unknown>;
+  const result = {} as Record<T, string | null>;
+  for (const field of fields) {
+    const val = obj[field];
+    result[field] = val != null ? String(val) : null;
+  }
+  return result;
+}
+
 /** Readable date string in Norwegian for use in prompts / artifact titles. */
 export function dagsDato() {
   return new Date().toLocaleDateString("nb-NO", {

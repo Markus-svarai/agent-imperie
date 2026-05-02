@@ -1,5 +1,5 @@
 import { inngest } from "../client";
-import { makeCtx, dagsDato } from "../utils";
+import { makeCtx, dagsDato, safePayload } from "../utils";
 import { TitanAgent } from "@/lib/agents/sales";
 import { PulseAgent } from "@/lib/agents/sales";
 import { RexAgent } from "@/lib/agents/sales";
@@ -40,12 +40,15 @@ export const titanOppfolgingEtterHermes = inngest.createFunction(
   { id: "titan-etter-hermes", name: "Titan · Oppfølging etter outreach", retries: 1 },
   { event: "hermes/outreach.sent" },
   async ({ event, step }) => {
-    const hermesRunId = event.data.hermesRunId as string | undefined;
-    const { ctx, runId, logs, persistRun } = makeCtx("titan", hermesRunId);
+    const p = safePayload(event.data, ["hermesRunId", "mottakere"]);
+    const { ctx, runId, logs, persistRun, isHalted } = makeCtx("titan", p.hermesRunId ?? undefined);
+    if (await step.run("sjekk-kill-switch", isHalted)) return { skipped: true };
+
+    const mottakere = p.mottakere ?? "(ingen liste)";
     const output = await step.run("titan-planlegger-oppfolging", () =>
       titan.run(
         {
-          message: `Hermes har sendt outreach til følgende prospects:\n\n${event.data.mottakere as string}\n\nLag en 7-dagers oppfølgingssekvens for disse.`,
+          message: `Hermes har sendt outreach til følgende prospects:\n\n${mottakere}\n\nLag en 7-dagers oppfølgingssekvens for disse.`,
         },
         ctx
       )
@@ -201,14 +204,22 @@ export const titanReagerPaaSvar = inngest.createFunction(
   { id: "titan-reager-paa-svar", name: "Titan · Reager på e-postsvar", retries: 2 },
   { event: "email/reply.received" },
   async ({ event, step }) => {
-    const { ctx, runId, logs, persistRun } = makeCtx("titan");
+    // Supports both field name conventions:
+    // webhook sends: { from, subject, text, leadId }
+    // older format:  { fromEmail, body, subject, leadId }
+    const d = (event.data ?? {}) as Record<string, unknown>;
+    const fromEmail = (d.from ?? d.fromEmail ?? null) as string | null;
+    const subject   = (d.subject ?? "(uten emne)") as string;
+    const body      = (d.text ?? d.body ?? null) as string | null;
+    const leadId    = (d.leadId ?? null) as string | null;
 
-    const { fromEmail, subject, body, leadId } = event.data as {
-      fromEmail: string;
-      subject: string;
-      body: string;
-      leadId: string | null;
-    };
+    if (!fromEmail) {
+      console.warn("[titan] email/reply.received mangler 'from' — hopper over");
+      return { skipped: true, reason: "missing_from" };
+    }
+
+    const { ctx, runId, logs, persistRun, isHalted } = makeCtx("titan");
+    if (await step.run("sjekk-kill-switch", isHalted)) return { skipped: true };
 
     const output = await step.run("titan-svarer", () =>
       titan.run(
@@ -218,7 +229,7 @@ export const titanReagerPaaSvar = inngest.createFunction(
 Emne: ${subject}
 
 Melding:
-${body}
+${body ?? "(tomt)"}
 
 ${leadId ? `Lead-ID: ${leadId}` : "Ukjent avsender — ikke i systemet ennå."}
 
@@ -229,7 +240,6 @@ Les svaret nøye, vurder tonen og intensjonen, og send et passende svar som push
     );
 
     await step.run("lagre-kjøring", () => persistRun(output, "event"));
-
     return { runId, svar: output.summary, usage: output.usage, logs };
   }
 );
