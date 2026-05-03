@@ -49,13 +49,19 @@ export async function POST(req: NextRequest) {
     // Unwrap envelope or use flat format
     const email: ResendEmailData = raw.data ?? raw;
 
-    // Diagnostic: log exactly what Resend sends so we can debug missing body
+    // Diagnostic: log ALL top-level keys in raw + data to find where body lives
+    console.log("[resend-inbound] raw keys:", Object.keys(raw));
+    if (raw.data) console.log("[resend-inbound] data keys:", Object.keys(raw.data));
     console.log("[resend-inbound] felt:", {
       from: email.from,
       subject: JSON.stringify(email.subject),
       textLen: email.text?.length ?? "undef",
       htmlLen: email.html?.length ?? "undef",
       hasHeaders: !!email.headers,
+      // Check for non-standard body fields Resend might use
+      hasBody: "body" in email,
+      hasContent: "content" in email,
+      hasRaw: "raw" in (raw as Record<string, unknown>),
     });
 
     if (!email?.from) {
