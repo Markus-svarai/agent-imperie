@@ -202,11 +202,10 @@ export const titanVurdererNoReply = inngest.createFunction(
 
 export const titanReagerPaaSvar = inngest.createFunction(
   { id: "titan-reager-paa-svar", name: "Titan · Reager på e-postsvar", retries: 2 },
-  { event: "email/reply.received" },
+  { event: "email.received" },
   async ({ event, step }) => {
-    // Supports both field name conventions:
-    // webhook sends: { from, subject, text, leadId }
-    // older format:  { fromEmail, body, subject, leadId }
+    // Field names from webhook: { from, subject, text, leadId }
+    // Legacy fallback:          { fromEmail, body }
     const d = (event.data ?? {}) as Record<string, unknown>;
     const fromEmail = (d.from ?? d.fromEmail ?? null) as string | null;
     const subject   = (d.subject ?? "(uten emne)") as string;

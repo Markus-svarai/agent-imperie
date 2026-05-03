@@ -113,22 +113,17 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Trigger Titan — separate try/catch so DB errors don't block this
+    // Trigger Titan — separate try/catch so DB errors never block this
+    const eventPayload = { from: fromEmail, subject, text: body, leadId: matchedLeadId };
+    console.log("SENDER TIL INNGEST", eventPayload);
     try {
-      console.log("[resend-inbound] sender event til Inngest...");
       await inngest.send({
-        name: "email/reply.received",
-        data: {
-          from: fromEmail,
-          subject,
-          text: body,
-          leadId: matchedLeadId,
-        },
+        name: "email.received",
+        data: eventPayload,
       });
-      console.log("Titan triggered ✅");
+      console.log("SENDT TIL INNGEST OK");
     } catch (inngestErr) {
-      console.error("[resend-inbound] INNGEST SEND FEIL:", inngestErr);
-      // Still return 200 to Resend
+      console.error("INNGEST SEND FEIL", inngestErr);
     }
 
     return NextResponse.json({ ok: true, from: fromEmail, leadId: matchedLeadId });
