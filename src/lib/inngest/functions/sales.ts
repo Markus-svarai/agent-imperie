@@ -208,8 +208,8 @@ export const titanReagerPaaSvar = inngest.createFunction(
     // Legacy fallback:          { fromEmail, body }
     const d = (event.data ?? {}) as Record<string, unknown>;
     const fromEmail = (d.from ?? d.fromEmail ?? null) as string | null;
-    const subject   = (d.subject ?? "(uten emne)") as string;
-    const body      = (d.text ?? d.body ?? null) as string | null;
+    const subject   = ((d.subject as string) || "(uten emne)");
+    const body      = ((d.text as string) || (d.body as string) || "") ;
     const leadId    = (d.leadId ?? null) as string | null;
 
     if (!fromEmail) {
@@ -236,11 +236,11 @@ export const titanReagerPaaSvar = inngest.createFunction(
 Emne: ${subject}
 
 Melding:
-${body ?? "(tomt)"}
+${body || "(ingen brødtekst — basér deg på emnelinjen)"}
 
 ${leadId ? `Lead-ID: ${leadId}` : "Ukjent avsender — ikke i systemet ennå. Du har e-postadressen men ingen lead-profil."}
 
-Les svaret nøye, vurder tonen og intensjonen, og send et passende svar som pusher mot demo-booking. Bruk send_reply-verktøyet. Oppdater lead-status med update_lead_status hvis du har et lead-ID.`,
+VIKTIG: Du MÅ svare med send_reply uansett om brødteksten er tom. Emnelinjen alene er nok til å vurdere intensjonen. Hvis emnet signaliserer interesse for demo — svar direkte med demo-booking-link. Bruk alltid send_reply. Oppdater lead-status med update_lead_status.`,
         },
         ctx
       )

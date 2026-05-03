@@ -96,6 +96,8 @@ export async function sendOutreachEmail(
       return { ok: false, error: data.message ?? "Ukjent Resend-feil" };
     }
 
+    console.log(`[sendOutreach] Sender til ${input.to} emne="${input.subject}" leadId=${input.leadId ?? "ingen"}`);
+
     // Log in DB
     await db.insert(schema.outreachEmails).values({
       orgId: DEFAULT_ORG_ID,
@@ -109,14 +111,11 @@ export async function sendOutreachEmail(
       sentAt: new Date(),
     });
 
-    // Update lead status to "contacted"
-    if (input.leadId) {
-      await db
-        .update(schema.leads)
-        .set({ status: "contacted", lastContactedAt: new Date(), updatedAt: new Date() })
-        .where(eq(schema.leads.id, input.leadId));
-    }
+    // Only update to "contacted" for first outreach — NOT for replies to inbound emails.
+    // Titan handles status updates via update_lead_status when replying.
+    // We skip the automatic status bump here to avoid overwriting "replied" → "contacted".
 
+    console.log(`[sendOutreach] OK — messageId=${data.id}`);
     return { ok: true, messageId: data.id };
   } catch (err) {
     console.error("[sendOutreach] Feil:", err);
