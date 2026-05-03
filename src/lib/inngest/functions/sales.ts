@@ -213,12 +213,20 @@ export const titanReagerPaaSvar = inngest.createFunction(
     const leadId    = (d.leadId ?? null) as string | null;
 
     if (!fromEmail) {
-      console.warn("[titan] email/reply.received mangler 'from' — hopper over");
+      console.warn("[titan] email.received mangler 'from' — hopper over");
       return { skipped: true, reason: "missing_from" };
     }
 
+    console.log(`[titan] Triggered — fra=${fromEmail} emne="${subject}" leadId=${leadId ?? "ingen"}`);
+
     const { ctx, runId, logs, persistRun, isHalted } = makeCtx("titan");
     if (await step.run("sjekk-kill-switch", isHalted)) return { skipped: true };
+
+    if (leadId) {
+      console.log(`[titan] Lead matchet: ${leadId}`);
+    } else {
+      console.warn(`[titan] Ingen lead matchet for ${fromEmail} — kjører uten lead-kontekst`);
+    }
 
     const output = await step.run("titan-svarer", () =>
       titan.run(
@@ -230,13 +238,17 @@ Emne: ${subject}
 Melding:
 ${body ?? "(tomt)"}
 
-${leadId ? `Lead-ID: ${leadId}` : "Ukjent avsender — ikke i systemet ennå."}
+${leadId ? `Lead-ID: ${leadId}` : "Ukjent avsender — ikke i systemet ennå. Du har e-postadressen men ingen lead-profil."}
 
-Les svaret nøye, vurder tonen og intensjonen, og send et passende svar som pusher mot demo-booking. Bruk send_reply-verktøyet. Oppdater lead-status med update_lead_status.`,
+Les svaret nøye, vurder tonen og intensjonen, og send et passende svar som pusher mot demo-booking. Bruk send_reply-verktøyet. Oppdater lead-status med update_lead_status hvis du har et lead-ID.`,
         },
         ctx
       )
     );
+
+    console.log(`[titan] Kjøring fullført — runId=${runId}`);
+    console.log(`[titan] Summary: "${output.summary?.slice(0, 150)}"`);
+    console.log(`[titan] Tokens: input=${output.usage?.inputTokens ?? 0} output=${output.usage?.outputTokens ?? 0}`);
 
     await step.run("lagre-kjøring", () => persistRun(output, "event"));
     return { runId, svar: output.summary, usage: output.usage, logs };

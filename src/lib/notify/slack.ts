@@ -15,7 +15,12 @@ export async function notifySlack(
   blocks?: SlackBlock[]
 ): Promise<void> {
   const webhookUrl = process.env.SLACK_WEBHOOK_URL;
-  if (!webhookUrl) return;
+
+  // Guard: missing or placeholder value — skip silently
+  if (!webhookUrl || !webhookUrl.startsWith("https://hooks.slack.com/")) {
+    console.log("[notifySlack] Slack webhook ikke konfigurert, hopper over");
+    return;
+  }
 
   try {
     const body: Record<string, unknown> = { text };
