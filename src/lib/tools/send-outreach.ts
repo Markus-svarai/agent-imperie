@@ -93,6 +93,9 @@ export async function sendOutreachEmail(
     const data = await res.json() as { id?: string; message?: string };
 
     if (!res.ok) {
+      console.error("[sendOutreach] Resend 400 full respons:", JSON.stringify(data));
+      console.error("[sendOutreach] From brukt:", `${FROM_NAME} <${FROM_EMAIL}>`);
+      console.error("[sendOutreach] To:", input.to, "Subject:", input.subject);
       return { ok: false, error: data.message ?? "Ukjent Resend-feil" };
     }
 
