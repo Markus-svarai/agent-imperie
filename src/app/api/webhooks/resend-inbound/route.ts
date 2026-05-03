@@ -49,17 +49,27 @@ export async function POST(req: NextRequest) {
     // Unwrap envelope or use flat format
     const email: ResendEmailData = raw.data ?? raw;
 
+    // Diagnostic: log exactly what Resend sends so we can debug missing body
+    console.log("[resend-inbound] felt:", {
+      from: email.from,
+      subject: JSON.stringify(email.subject),
+      textLen: email.text?.length ?? "undef",
+      htmlLen: email.html?.length ?? "undef",
+      hasHeaders: !!email.headers,
+    });
+
     if (!email?.from) {
       console.warn("[resend-inbound] mangler from-felt — ignorerer");
       return NextResponse.json({ ok: true, warning: "no_from" });
     }
 
     fromEmail = extractEmail(email.from);
-    const subject = email.subject ?? "(uten emne)";
-    const body = (email.text ?? stripHtml(email.html ?? "")).slice(0, 2000);
+    // Use || not ?? — catches empty strings in addition to null/undefined
+    const subject = email.subject || "(uten emne)";
+    const body = (email.text || stripHtml(email.html || "")).slice(0, 2000);
     const leadId = extractHeader(email.headers, "x-lead-id");
 
-    console.log(`[resend-inbound] fra=${fromEmail} emne="${subject}" leadId=${leadId}`);
+    console.log(`[resend-inbound] fra=${fromEmail} emne="${subject}" bodyLen=${body.length} leadId=${leadId}`);
 
     // DB: match lead
     matchedLeadId = leadId;
