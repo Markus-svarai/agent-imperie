@@ -1,6 +1,10 @@
 import { serve } from "inngest/next";
 import { inngest } from "@/lib/inngest/client";
 
+// Diagnostic: confirm signing key is present at startup (never logs the value)
+console.log("[inngest/route] has INNGEST_SIGNING_KEY:", !!process.env.INNGEST_SIGNING_KEY);
+console.log("[inngest/route] has INNGEST_EVENT_KEY:", !!process.env.INNGEST_EVENT_KEY);
+
 // Original 7 agents
 import { guardianHealthCheck } from "@/lib/inngest/functions/guardian";
 import { ledgerDailyBrief } from "@/lib/inngest/functions/ledger";
