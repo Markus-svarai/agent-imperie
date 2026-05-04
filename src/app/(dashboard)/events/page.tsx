@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
-import { DASHBOARD_SECRET } from "@/lib/api/auth";
 
 type FeedItem = {
   id: string;
@@ -48,7 +47,9 @@ export default function EventsPage() {
   useEffect(() => {
     setLoading(true);
     fetch(`/api/events?days=${days}`, {
-      headers: { Authorization: `Bearer ${DASHBOARD_SECRET}` },
+      headers: process.env.NEXT_PUBLIC_DASHBOARD_SECRET
+        ? { Authorization: `Bearer ${process.env.NEXT_PUBLIC_DASHBOARD_SECRET}` }
+        : {},
     })
       .then(r => r.json())
       .then(d => setItems(d.items ?? []))
