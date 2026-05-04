@@ -252,6 +252,7 @@ export default function DashboardPage() {
           sublabel={p.total > 0 ? `${p.new} nye, ${p.contacted} kontaktet` : "Kjør Nova for å finne leads"}
           icon={Users}
           highlight={p.total > 0}
+          href="/command"
         />
         <KpiCard
           label="Svart / Interessert"
@@ -262,6 +263,7 @@ export default function DashboardPage() {
           icon={MailOpen}
           highlight={hotLeads > 0}
           urgent={hotLeads > 0}
+          href="/command"
         />
         <KpiCard
           label="Demo booket"
@@ -269,6 +271,7 @@ export default function DashboardPage() {
           sublabel={p.demo_booked > 0 ? "Sjekk Calendly" : "Målet er første demo"}
           icon={Calendar}
           highlight={p.demo_booked > 0}
+          href="/proposals"
         />
         <KpiCard
           label="Runs siste 24t"
@@ -277,6 +280,7 @@ export default function DashboardPage() {
             ? `$${(data.costTodayUsd ?? 0).toFixed(4)} estimert kost`
             : "Ingen kjøringer ennå"}
           icon={Zap}
+          href="/runs"
         />
       </div>
 
@@ -453,11 +457,11 @@ export default function DashboardPage() {
               </div>
             ) : (
               <div className="space-y-2">
-                <PipelineRow label="Nye" value={p.new} total={p.total} color="bg-fg-subtle" />
-                <PipelineRow label="Kontaktet" value={p.contacted} total={p.total} color="bg-blue-500" />
-                <PipelineRow label="Svart" value={p.replied} total={p.total} color="bg-accent" />
-                <PipelineRow label="Interessert" value={p.interested} total={p.total} color="bg-yellow-500" />
-                <PipelineRow label="Demo booket" value={p.demo_booked} total={p.total} color="bg-status-ok" />
+                <PipelineRow label="Nye" value={p.new} total={p.total} color="bg-fg-subtle" href="/command" />
+                <PipelineRow label="Kontaktet" value={p.contacted} total={p.total} color="bg-blue-500" href="/runs" />
+                <PipelineRow label="Svart" value={p.replied} total={p.total} color="bg-accent" href="/command" />
+                <PipelineRow label="Interessert" value={p.interested} total={p.total} color="bg-yellow-500" href="/command" />
+                <PipelineRow label="Demo booket" value={p.demo_booked} total={p.total} color="bg-status-ok" href="/proposals" />
                 {(p.not_interested + p.no_reply) > 0 && (
                   <PipelineRow
                     label="Ikke aktuell"
@@ -465,6 +469,7 @@ export default function DashboardPage() {
                     total={p.total}
                     color="bg-status-err/60"
                     muted
+                    href="/runs"
                   />
                 )}
               </div>
@@ -490,12 +495,20 @@ export default function DashboardPage() {
                   const Icon = ACTIVITY_ICONS[item.type] ?? Activity;
                   const isInbound = item.type === "email_in";
                   const isError = item.status === "failed";
+                  // Determine destination link by type
+                  const href =
+                    item.type === "run" ? "/runs" :
+                    item.type === "email_in" ? "/command" :
+                    item.type === "email_out" ? "/runs" :
+                    item.type === "lead_new" ? "/artifacts" :
+                    "/runs";
                   return (
-                    <div
+                    <Link
                       key={item.id}
+                      href={href as "/dashboard"}
                       className={cn(
-                        "flex gap-3 px-5 py-3 border-b border-border-subtle last:border-0",
-                        isInbound && "bg-accent/3"
+                        "flex gap-3 px-5 py-3 border-b border-border-subtle last:border-0 hover:bg-bg-elevated transition-colors group",
+                        isInbound && "bg-accent/3 hover:bg-accent/6"
                       )}
                     >
                       <div className={cn(
@@ -512,17 +525,20 @@ export default function DashboardPage() {
                         )} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="text-xs font-medium text-fg leading-snug">
+                        <div className="text-xs font-medium text-fg leading-snug group-hover:text-accent transition-colors">
                           {item.title}
                         </div>
                         <div className="text-xs text-fg-subtle mt-0.5 line-clamp-1">
                           {item.description}
                         </div>
                       </div>
-                      <div className="text-xs text-fg-subtle whitespace-nowrap ml-1 mt-0.5">
-                        {formatRelative(new Date(item.ts))}
+                      <div className="flex items-start gap-1">
+                        <div className="text-xs text-fg-subtle whitespace-nowrap mt-0.5">
+                          {formatRelative(new Date(item.ts))}
+                        </div>
+                        <ArrowRight className="size-3 text-fg-subtle opacity-0 group-hover:opacity-100 transition-opacity mt-0.5 shrink-0" />
                       </div>
-                    </div>
+                    </Link>
                   );
                 })}
                 <div className="px-5 pt-3">
@@ -549,6 +565,7 @@ function KpiCard({
   icon: Icon,
   highlight = false,
   urgent = false,
+  href,
 }: {
   label: string;
   value: string;
@@ -556,11 +573,13 @@ function KpiCard({
   icon?: React.ElementType;
   highlight?: boolean;
   urgent?: boolean;
+  href?: string;
 }) {
-  return (
+  const inner = (
     <div className={cn(
-      "surface p-5",
-      urgent && "border-accent/40 bg-accent/3"
+      "surface p-5 transition-all",
+      urgent && "border-accent/40 bg-accent/3",
+      href && "hover:border-border-strong hover:bg-bg-elevated group cursor-pointer"
     )}>
       <div className="flex items-start justify-between">
         <div className="text-xs font-medium text-fg-muted uppercase tracking-wider">
@@ -578,9 +597,16 @@ function KpiCard({
         {sublabel && (
           <div className="mt-1 text-xs text-fg-subtle">{sublabel}</div>
         )}
+        {href && (
+          <div className="mt-2 flex items-center gap-0.5 text-xs text-fg-subtle opacity-0 group-hover:opacity-100 transition-opacity">
+            Åpne <ArrowRight className="size-3" />
+          </div>
+        )}
       </div>
     </div>
   );
+  if (href) return <Link href={href as "/dashboard"}>{inner}</Link>;
+  return inner;
 }
 
 function PipelineRow({
@@ -589,18 +615,29 @@ function PipelineRow({
   total,
   color,
   muted = false,
+  href,
 }: {
   label: string;
   value: number;
   total: number;
   color: string;
   muted?: boolean;
+  href?: string;
 }) {
   const pct = total > 0 ? Math.round((value / total) * 100) : 0;
-  return (
-    <div>
+  const inner = (
+    <div className={cn(
+      "rounded-lg px-2 py-1.5 -mx-2 transition-colors",
+      href && value > 0 && "hover:bg-bg-elevated cursor-pointer group"
+    )}>
       <div className="flex items-center justify-between text-xs mb-1">
-        <span className={cn(muted ? "text-fg-subtle" : "text-fg-muted")}>{label}</span>
+        <span className={cn(
+          "transition-colors",
+          muted ? "text-fg-subtle" : "text-fg-muted",
+          href && value > 0 && "group-hover:text-fg"
+        )}>
+          {label}
+        </span>
         <span className={cn("font-medium tabular-nums", value === 0 ? "text-fg-subtle" : "text-fg")}>
           {value}
         </span>
@@ -613,4 +650,6 @@ function PipelineRow({
       </div>
     </div>
   );
+  if (href && value > 0) return <Link href={href as "/dashboard"}>{inner}</Link>;
+  return inner;
 }
