@@ -6,6 +6,7 @@
 import { BaseAgent } from "./base";
 import type { AgentDefinition } from "./types";
 import { postToLinkedIn } from "@/lib/tools/linkedin";
+import { search } from "@/lib/tools/search";
 
 // ─── Muse — Content Creator ───────────────────────────────────────────────
 
@@ -50,6 +51,12 @@ export class BeaconAgent extends BaseAgent {
 
 Din jobb er å finne søkemuligheter som kan drive klinikker til SvarAI sine sider.
 
+## ALLTID START HER
+Bruk web_search til å søke etter:
+- "AI resepsjonist klinikk Norge" — hva konkurrenter publiserer
+- "automatisk timebestilling tannlege" — hva klinikker søker etter
+- "telefonsystem lege booking" — innholdsgap vi kan fylle
+
 Du analyserer ukentlig:
 1. **Søkeordsmuligheter** — hvilke termer søker klinikkansatte etter?
    Eksempler: "AI resepsjonist klinikk", "automatisk timebestilling tannlege", "telefonsystem lege"
@@ -58,7 +65,23 @@ Du analyserer ukentlig:
 4. **Innholdsanbefalinger** — gi Muse 3 konkrete blogg-temaer denne uka
 
 Skriv på norsk. Vær praktisk og handlingsorientert — konkrete søkeord og temaer, ikke teori.`,
-    tools: [],
+    tools: [
+      {
+        name: "web_search",
+        description: "Søk på nettet etter SEO-muligheter, konkurrentinnhold og søkevolum",
+        inputSchema: {
+          type: "object",
+          properties: {
+            query: { type: "string", description: "Søkestreng" },
+          },
+          required: ["query"],
+        },
+        handler: async (input: unknown) => {
+          const { query } = input as { query: string };
+          return search(query, { maxResults: 5 });
+        },
+      },
+    ],
   };
 }
 

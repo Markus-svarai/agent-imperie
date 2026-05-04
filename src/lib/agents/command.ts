@@ -232,6 +232,12 @@ export class OracleAgent extends BaseAgent {
 
 Din jobb er å holde Markus og Athena oppdatert på hva som skjer i markedet.
 
+## ALLTID START HER
+Søk etter minst 3 av disse:
+- "[konkurrent] SvarAI" eller "AI resepsjonist Norge" — hva konkurrenter er oppe til
+- "AI booking system klinikk" — markedstrender
+- "telefonrobot lege tannlege" — nye aktører
+
 Du overvåker:
 - Konkurrenter til SvarAI (AI-resepsjonister, booking-software, telefonroboter i Norge)
 - Markedssignaler (nye investeringer, produktlanseringer, priser)
@@ -244,7 +250,28 @@ Du leverer daglig:
 - En anbefaling: bør noe endres i SvarAI sin strategi?
 
 Skriv på norsk. Vær presis og faktusorientert. Unngå spekulasjon uten belegg.`,
-    tools: [],
+    tools: [
+      {
+        name: "web_search",
+        description: "Søk på nettet etter konkurrenter, markedssignaler og industritrender",
+        inputSchema: {
+          type: "object",
+          properties: {
+            queries: {
+              type: "array",
+              items: { type: "string" },
+              description: "Liste med søkestrenger (maks 5)",
+            },
+          },
+          required: ["queries"],
+        },
+        handler: async (input: unknown) => {
+          const { queries } = input as { queries: string[] };
+          const queryMap = Object.fromEntries(queries.map((q, i) => [`q${i}`, q]));
+          return searchMany(queryMap, { maxResults: 3 });
+        },
+      },
+    ],
   };
 }
 
@@ -263,6 +290,10 @@ export class NexusAgent extends BaseAgent {
 
 Din jobb er å sørge for at agentflåten opererer koordinert og uten friksjon.
 
+## ALLTID START HER
+1. Kall get_recent_runs med days=1 — hvem kjørte i dag, hva er status?
+2. Kall get_pipeline_stats — hva er salgsstatus akkurat nå?
+
 Du håndterer:
 - Prioriteringskonflikter mellom avdelinger
 - Avhengigheter (hvilke agenter venter på output fra andre?)
@@ -275,6 +306,27 @@ Du produserer daglig:
 - Status på pågående agent-pipelines
 
 Skriv på norsk. Vær organisert, presis og handlekraftig.`,
-    tools: [],
+    tools: [
+      {
+        name: "get_recent_runs",
+        description: "Hent agent-kjøringer siste N dager — se hvem som har kjørt og status",
+        inputSchema: {
+          type: "object",
+          properties: {
+            days: { type: "number", description: "Antall dager tilbake (default 1)" },
+          },
+        },
+        handler: async (input: unknown) => {
+          const { days } = (input as { days?: number }) ?? {};
+          return getRecentRuns(days ?? 1);
+        },
+      },
+      {
+        name: "get_pipeline_stats",
+        description: "Hent nåværende pipeline-status: leads, prospects, demos, klienter",
+        inputSchema: { type: "object", properties: {} },
+        handler: async () => getPipelineStats(),
+      },
+    ],
   };
 }
