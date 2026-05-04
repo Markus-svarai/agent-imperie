@@ -333,6 +333,59 @@ function PhoneEdit({ leadId, initial, onFound }: {
   );
 }
 
+// ── WantCallCard — egen komponent for å unngå hooks i .map() ─────────────────
+
+function WantCallCard({ lead }: { lead: Lead }) {
+  const [contactName, setContactName] = useState(lead.contactName);
+
+  return (
+    <div className="px-5 py-4 flex items-start justify-between gap-4 group">
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-sm font-semibold">{lead.companyName}</span>
+          <StatusBadge status={lead.status} />
+          {lead.fitScore && (
+            <span className="text-xs text-fg-subtle">Fit: {lead.fitScore}/10</span>
+          )}
+        </div>
+        <div className="flex items-center gap-2 text-xs text-fg-muted">
+          <InlineEdit
+            leadId={lead.id}
+            field="contactName"
+            initial={contactName}
+            placeholder="Legg til kontaktperson"
+            display={(v) => <span className="text-xs text-fg-muted">{v}</span>}
+          />
+          {(lead.specialty || lead.location) && (
+            <span className="text-fg-subtle/50">·</span>
+          )}
+          <span>{[lead.specialty, lead.location].filter(Boolean).join(" · ")}</span>
+        </div>
+        <PhoneEdit
+          leadId={lead.id}
+          initial={lead.phone}
+          onFound={(_phone, name) => { if (name && !contactName) setContactName(name); }}
+        />
+        {lead.email && (
+          <div className="text-xs text-fg-subtle mt-1">✉ {lead.email}</div>
+        )}
+        {lead.notes && (
+          <p className="text-xs text-fg-subtle mt-1.5 line-clamp-2 leading-relaxed italic">
+            {lead.notes.slice(0, 140)}
+          </p>
+        )}
+      </div>
+      <button
+        onClick={() => addToCalendar(lead)}
+        className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-accent/10 border border-accent/25 text-accent text-xs font-medium hover:bg-accent/20 transition-colors shrink-0 whitespace-nowrap"
+      >
+        <CalendarPlus className="size-3.5" />
+        Legg i kalender
+      </button>
+    </div>
+  );
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function BriefPage() {
@@ -442,55 +495,9 @@ export default function BriefPage() {
             urgent
           />
           <div className="divide-y divide-border-subtle">
-            {data!.wantCall.map((lead, i) => {
-              const [contactName, setContactName] = useState(lead.contactName);
-              return (
-              <div key={i} className="px-5 py-4 flex items-start justify-between gap-4 group">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-sm font-semibold">{lead.companyName}</span>
-                    <StatusBadge status={lead.status} />
-                    {lead.fitScore && (
-                      <span className="text-xs text-fg-subtle">Fit: {lead.fitScore}/10</span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-fg-muted">
-                    <InlineEdit
-                      leadId={lead.id}
-                      field="contactName"
-                      initial={contactName}
-                      placeholder="Legg til kontaktperson"
-                      display={(v) => <span className="text-xs text-fg-muted">{v}</span>}
-                    />
-                    {(lead.specialty || lead.location) && (
-                      <span className="text-fg-subtle/50">·</span>
-                    )}
-                    <span>{[lead.specialty, lead.location].filter(Boolean).join(" · ")}</span>
-                  </div>
-                  <PhoneEdit
-                    leadId={lead.id}
-                    initial={lead.phone}
-                    onFound={(_phone, name) => { if (name && !contactName) setContactName(name); }}
-                  />
-                  {lead.email && (
-                    <div className="text-xs text-fg-subtle mt-1">✉ {lead.email}</div>
-                  )}
-                  {lead.notes && (
-                    <p className="text-xs text-fg-subtle mt-1.5 line-clamp-2 leading-relaxed italic">
-                      {lead.notes.slice(0, 140)}
-                    </p>
-                  )}
-                </div>
-                <button
-                  onClick={() => addToCalendar(lead)}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-accent/10 border border-accent/25 text-accent text-xs font-medium hover:bg-accent/20 transition-colors shrink-0 whitespace-nowrap"
-                >
-                  <CalendarPlus className="size-3.5" />
-                  Legg i kalender
-                </button>
-              </div>
-              );
-            })}
+            {data!.wantCall.map((lead, i) => (
+              <WantCallCard key={lead.id ?? i} lead={lead} />
+            ))}
           </div>
         </div>
       )}
