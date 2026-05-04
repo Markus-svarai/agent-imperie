@@ -16,6 +16,8 @@ export interface ClinicLead {
   location: string;
   website?: string;
   email?: string;
+  phone?: string;
+  contactName?: string;
   fitScore: number;
   painPoint: string;
   approachAngle: string;
@@ -64,10 +66,12 @@ export async function storeLead(lead: ClinicLead): Promise<string> {
       .values({
         orgId: DEFAULT_ORG_ID,
         companyName: lead.companyName,
+        contactName: lead.contactName,
         specialty: lead.specialty,
         location: lead.location,
         website: lead.website,
         email: lead.email,
+        phone: lead.phone,
         fitScore: lead.fitScore,
         notes: `Smertepunkt: ${lead.painPoint}\nInngangsvinkel: ${lead.approachAngle}`,
         source: "nova",

@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import {
   Mail, MailOpen, PhoneCall, XCircle, Clock, RefreshCw,
   Loader2, CalendarPlus, ChevronDown, ChevronUp, AlertCircle,
-  CheckCircle2, ArrowRight, MessageSquare,
+  CheckCircle2, ArrowRight, MessageSquare, Pencil, Check, X,
 } from "lucide-react";
 import { cn, formatRelative } from "@/lib/utils";
 import Link from "next/link";
@@ -41,6 +41,7 @@ interface InboundEmail {
 }
 
 interface Lead {
+  id?: string;
   companyName: string | null;
   contactName: string | null;
   email: string | null;
@@ -133,6 +134,89 @@ function SectionHeader({
         {count}
       </span>
     </div>
+  );
+}
+
+// ── PhoneEdit — inline redigering av telefonnummer ───────────────────────────
+
+function PhoneEdit({ leadId, initial }: { leadId?: string; initial: string | null }) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(initial ?? "");
+  const [saved, setSaved] = useState(initial);
+  const [saving, setSaving] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const save = async () => {
+    if (!leadId || value === saved) { setEditing(false); return; }
+    setSaving(true);
+    try {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      const secret = process.env.NEXT_PUBLIC_DASHBOARD_SECRET;
+      if (secret) headers["Authorization"] = `Bearer ${secret}`;
+      await fetch(`/api/leads/${leadId}`, {
+        method: "PATCH",
+        headers,
+        body: JSON.stringify({ phone: value }),
+      });
+      setSaved(value);
+    } finally {
+      setSaving(false);
+      setEditing(false);
+    }
+  };
+
+  const cancel = () => { setValue(saved ?? ""); setEditing(false); };
+
+  if (editing) {
+    return (
+      <div className="flex items-center gap-2 mt-1.5">
+        <PhoneCall className="size-3.5 text-yellow-400 shrink-0" />
+        <input
+          ref={inputRef}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") void save(); if (e.key === "Escape") cancel(); }}
+          placeholder="+47 000 00 000"
+          className="text-sm bg-bg-elevated border border-accent/40 rounded px-2 py-0.5 text-fg w-40 focus:outline-none focus:border-accent"
+          autoFocus
+        />
+        <button onClick={() => void save()} disabled={saving} className="text-status-ok hover:opacity-80">
+          <Check className="size-3.5" />
+        </button>
+        <button onClick={cancel} className="text-fg-subtle hover:text-fg">
+          <X className="size-3.5" />
+        </button>
+      </div>
+    );
+  }
+
+  if (saved) {
+    return (
+      <div className="flex items-center gap-2 mt-1.5">
+        <a
+          href={`tel:${saved.replace(/\s/g, "")}`}
+          className="flex items-center gap-1.5 text-sm font-semibold text-yellow-400 hover:text-yellow-300 transition-colors"
+        >
+          <PhoneCall className="size-3.5" />
+          {saved}
+        </a>
+        {leadId && (
+          <button onClick={() => setEditing(true)} className="text-fg-subtle hover:text-fg opacity-0 group-hover:opacity-100 transition-opacity">
+            <Pencil className="size-3" />
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <button
+      onClick={() => { if (leadId) setEditing(true); }}
+      className="flex items-center gap-1.5 mt-1.5 text-xs text-fg-subtle hover:text-yellow-400 transition-colors"
+    >
+      <PhoneCall className="size-3.5" />
+      <span className="underline underline-offset-2 decoration-dashed">Legg til telefonnummer</span>
+    </button>
   );
 }
 
@@ -246,7 +330,7 @@ export default function BriefPage() {
           />
           <div className="divide-y divide-border-subtle">
             {data!.wantCall.map((lead, i) => (
-              <div key={i} className="px-5 py-4 flex items-start justify-between gap-4">
+              <div key={i} className="px-5 py-4 flex items-start justify-between gap-4 group">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-sm font-semibold">{lead.companyName}</span>
@@ -258,22 +342,9 @@ export default function BriefPage() {
                   <div className="text-xs text-fg-muted">
                     {[lead.contactName, lead.specialty, lead.location].filter(Boolean).join(" · ")}
                   </div>
-                  {(lead.email || lead.phone) && (
-                    <div className="flex items-center gap-3 mt-1.5">
-                      {lead.phone && (
-                        <a
-                          href={`tel:${lead.phone.replace(/\s/g, "")}`}
-                          className="flex items-center gap-1.5 text-sm font-semibold text-yellow-400 hover:text-yellow-300 transition-colors"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <PhoneCall className="size-3.5" />
-                          {lead.phone}
-                        </a>
-                      )}
-                      {lead.email && (
-                        <span className="text-xs text-fg-subtle">✉ {lead.email}</span>
-                      )}
-                    </div>
+                  <PhoneEdit leadId={lead.id} initial={lead.phone} />
+                  {lead.email && (
+                    <div className="text-xs text-fg-subtle mt-1">✉ {lead.email}</div>
                   )}
                   {lead.notes && (
                     <p className="text-xs text-fg-subtle mt-1.5 line-clamp-2 leading-relaxed italic">
