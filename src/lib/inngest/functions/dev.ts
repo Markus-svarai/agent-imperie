@@ -10,7 +10,7 @@ export const devLogganalyse = inngest.createFunction(
     name: "Dev · Logganalyse",
     retries: 2,
   },
-  { cron: "0 9 * * 1" }, // Mandag kl 09 (var hvert 4. time — $7/mnd)
+  { event: "system/paused" }, // PAUSET — aktiveres manuelt (var: cron "0 9 * * 1")
   async ({ step }) => {
     const { ctx, runId, logs, persistRun } = makeCtx("dev");
 

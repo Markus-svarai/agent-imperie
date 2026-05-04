@@ -13,7 +13,7 @@ const silo = new SiloAgent();
 
 export const darwinProductBrief = inngest.createFunction(
   { id: "darwin-product-brief", name: "Darwin · Ukentlig product brief", retries: 2 },
-  { cron: "0 10 * * 1" },
+  { event: "system/paused" }, // PAUSET — aktiveres manuelt (var: cron "0 10 * * 1")
   async ({ step }) => {
     const { ctx, runId, logs, persistRun } = makeCtx("darwin");
 
@@ -94,7 +94,7 @@ export const darwinAnalyserFeedback = inngest.createFunction(
 
 export const atlasTekniskResearch = inngest.createFunction(
   { id: "atlas-teknisk-research", name: "Atlas · Teknisk research", retries: 1 },
-  { cron: "0 10 * * 3" },
+  { event: "system/paused" }, // PAUSET — aktiveres manuelt (var: cron "0 10 * * 3")
   async ({ step }) => {
     const { ctx, runId, logs, persistRun } = makeCtx("atlas");
 
@@ -142,7 +142,7 @@ Analyser og anbefal: hva bør vi adoptere, hva bør vi følge med på, og hva ka
 
 export const siloByggerKunnskapsbase = inngest.createFunction(
   { id: "silo-kunnskapsbase", name: "Silo · Kunnskapsbase-oppdatering", retries: 2 },
-  { cron: "0 22 * * *" },
+  { event: "system/paused" }, // PAUSET — aktiveres manuelt (var: cron "0 22 * * *")
   async ({ step }) => {
     const { ctx, runId, logs, persistRun } = makeCtx("silo");
     const output = await step.run("silo-dokumenterer", () =>

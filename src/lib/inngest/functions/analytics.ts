@@ -13,7 +13,7 @@ const quill = new QuillAgent();
 
 export const lensDagligKpis = inngest.createFunction(
   { id: "lens-daglig-kpis", name: "Lens · Daglig KPI-overvåking", retries: 2 },
-  { cron: "0 8 * * *" },
+  { event: "system/paused" }, // PAUSET — aktiveres manuelt (var: cron "0 8 * * *")
   async ({ step }) => {
     const { ctx, runId, logs, persistRun } = makeCtx("lens");
     const output = await step.run("lens-analyserer", () =>
@@ -51,7 +51,7 @@ export const lensDagligKpis = inngest.createFunction(
 
 export const sageUkesrapport = inngest.createFunction(
   { id: "sage-ukesrapport", name: "Sage · Ukentlig markedsrapport", retries: 2 },
-  { cron: "0 7 * * 1" },
+  { event: "system/paused" }, // PAUSET — aktiveres manuelt (var: cron "0 7 * * 1")
   async ({ step }) => {
     const { ctx, runId, logs, persistRun } = makeCtx("sage");
 
@@ -108,7 +108,7 @@ Syntetiser dette til én strukturert ukesrapport: konkurransebilde, muligheter, 
 
 export const quillDagligSyntese = inngest.createFunction(
   { id: "quill-daglig-syntese", name: "Quill · Daglig executive summary", retries: 2 },
-  { cron: "0 17 * * *" },
+  { event: "system/paused" }, // PAUSET — aktiveres manuelt (var: cron "0 17 * * *")
   async ({ step }) => {
     const { ctx, runId, logs, persistRun } = makeCtx("quill");
     const output = await step.run("quill-syntetiserer", () =>

@@ -15,7 +15,7 @@ const echo = new EchoAgent();
 
 export const beaconSeoAnalyse = inngest.createFunction(
   { id: "beacon-seo-analyse", name: "Beacon · Ukentlig SEO-analyse", retries: 2 },
-  { cron: "0 6 * * 1" },
+  { event: "system/paused" }, // PAUSET — aktiveres manuelt (var: cron "0 6 * * 1")
   async ({ step }) => {
     const { ctx, runId, logs, persistRun } = makeCtx("beacon");
 
@@ -72,7 +72,7 @@ Analyser dette og lever: (1) 3 høyprioritets søkeord vi bør rangere på, (2) 
 
 export const museSkriverInnhold = inngest.createFunction(
   { id: "muse-skriver-innhold", name: "Muse · Innholdsproduksjon", retries: 2 },
-  { cron: "0 9 * * 2,4" },
+  { event: "system/paused" }, // PAUSET — aktiveres manuelt (var: cron "0 9 * * 2,4")
   async ({ step }) => {
     const { ctx, runId, logs, persistRun } = makeCtx("muse");
     const output = await step.run("muse-skriver", () =>

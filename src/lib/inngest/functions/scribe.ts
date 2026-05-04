@@ -11,7 +11,7 @@ export const scribeUkesanalyse = inngest.createFunction(
     name: "Scribe · Ukesanalyse",
     retries: 2,
   },
-  { cron: "0 9 * * 1" }, // Mandag kl 09:00
+  { event: "system/paused" }, // PAUSET — aktiveres manuelt (var: cron "0 9 * * 1")
   async ({ step }) => {
     const { ctx, runId, logs, persistRun } = makeCtx("scribe");
 

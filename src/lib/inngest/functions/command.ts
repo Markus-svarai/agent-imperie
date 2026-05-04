@@ -13,7 +13,7 @@ const nexus = new NexusAgent();
 
 export const athenaUkestrategi = inngest.createFunction(
   { id: "athena-ukestrategi", name: "Athena · Ukentlig strategi", retries: 1 },
-  { cron: "0 8 * * 1" },
+  { event: "system/paused" }, // PAUSET — aktiveres manuelt (var: cron "0 8 * * 1")
   async ({ step }) => {
     const { ctx, runId, logs, persistRun } = makeCtx("athena");
 
@@ -76,7 +76,7 @@ export const athenaReagerPaaIntel = inngest.createFunction(
 
 export const oracleDagligIntel = inngest.createFunction(
   { id: "oracle-daglig-intel", name: "Oracle · Daglig markedsintelligens", retries: 2 },
-  { cron: "0 7 * * *" },
+  { event: "system/paused" }, // PAUSET — aktiveres manuelt (var: cron "0 7 * * *")
   async ({ step }) => {
     const { ctx, runId, logs, persistRun } = makeCtx("oracle");
 
@@ -133,7 +133,7 @@ Analyser dette og lever ett strukturert intel-sammendrag: hva skjer, hvem bevege
 
 export const nexusDagligKoordinering = inngest.createFunction(
   { id: "nexus-daglig-koordinering", name: "Nexus · Daglig koordinering", retries: 1 },
-  { cron: "30 6 * * *" },
+  { event: "system/paused" }, // PAUSET — aktiveres manuelt (var: cron "30 6 * * *")
   async ({ step }) => {
     const { ctx, runId, logs, persistRun } = makeCtx("nexus");
     const output = await step.run("nexus-koordinerer", () =>

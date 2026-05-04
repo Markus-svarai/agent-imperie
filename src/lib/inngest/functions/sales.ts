@@ -82,7 +82,7 @@ export const pulsePipelineHygiene = inngest.createFunction(
 
 export const rexUkesanalyse = inngest.createFunction(
   { id: "rex-ukesanalyse", name: "Rex · Ukentlig revenue-analyse", retries: 2 },
-  { cron: "0 9 * * 5" },
+  { event: "system/paused" }, // PAUSET — aktiveres manuelt (var: cron "0 9 * * 5")
   async ({ step }) => {
     const { ctx, runId, logs, persistRun } = makeCtx("rex");
     const output = await step.run("rex-analyserer", () =>

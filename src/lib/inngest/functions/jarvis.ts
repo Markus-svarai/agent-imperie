@@ -42,7 +42,7 @@ export const jarvisMorgenplan = inngest.createFunction(
     name: "Jarvis · Morgenorkestrering",
     retries: 1,
   },
-  { cron: "15 6 * * *" }, // 15 min etter Ledger (som kjører kl 06:00)
+  { event: "system/paused" }, // PAUSET — aktiveres manuelt (var: cron "15 6 * * *")
   async ({ step }) => {
     const { ctx, runId, logs, persistRun } = makeCtx("jarvis");
 

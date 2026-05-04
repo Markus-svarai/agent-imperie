@@ -10,7 +10,7 @@ export const ledgerDailyBrief = inngest.createFunction(
     name: "Ledger · Daglig brief",
     retries: 2,
   },
-  { cron: "0 6 * * *" },
+  { event: "system/paused" }, // PAUSET — aktiveres manuelt (var: cron "0 6 * * *")
   async ({ step }) => {
     const { ctx, runId, logs, persistRun } = makeCtx("ledger");
 

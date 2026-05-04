@@ -12,7 +12,7 @@ const kronos = new KronosAgent();
 
 export const vaultSikkerhetssjekk = inngest.createFunction(
   { id: "vault-sikkerhetssjekk", name: "Vault · Nattlig sikkerhetssjekk", retries: 2 },
-  { cron: "0 3 * * 1" }, // Mandag kl 03 — ukentlig (daglig er overkill)
+  { event: "system/paused" }, // PAUSET — aktiveres manuelt (var: cron "0 3 * * 1")
   async ({ step }) => {
     const { ctx, runId, logs, persistRun } = makeCtx("vault");
     const output = await step.run("vault-scanner", () =>
@@ -81,7 +81,7 @@ export const fluxPlanleggEndring = inngest.createFunction(
 
 export const kronosOptimaliser = inngest.createFunction(
   { id: "kronos-optimaliserer", name: "Kronos · Schedule-optimalisering", retries: 1 },
-  { cron: "0 5 * * 1" },
+  { event: "system/paused" }, // PAUSET — aktiveres manuelt (var: cron "0 5 * * 1")
   async ({ step }) => {
     const { ctx, runId, logs, persistRun } = makeCtx("kronos");
     const output = await step.run("kronos-analyserer", () =>

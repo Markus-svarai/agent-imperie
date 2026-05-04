@@ -10,7 +10,7 @@ const volt = new VoltAgent();
 
 export const mintKostnadsrapport = inngest.createFunction(
   { id: "mint-kostnadsrapport", name: "Mint · Nattlig kostnadsrapport", retries: 2 },
-  { cron: "0 23 * * *" },
+  { event: "system/paused" }, // PAUSET — aktiveres manuelt (var: cron "0 23 * * *")
   async ({ step }) => {
     const { ctx, runId, logs, persistRun } = makeCtx("mint");
     const output = await step.run("mint-analyserer-kostnader", () =>
@@ -38,7 +38,7 @@ export const mintKostnadsrapport = inngest.createFunction(
 
 export const voltVekstanalyse = inngest.createFunction(
   { id: "volt-vekstanalyse", name: "Volt · Ukentlig vekstanalyse", retries: 2 },
-  { cron: "0 9 * * 5" },
+  { event: "system/paused" }, // PAUSET — aktiveres manuelt (var: cron "0 9 * * 5")
   async ({ step }) => {
     const { ctx, runId, logs, persistRun } = makeCtx("volt");
     const output = await step.run("volt-analyserer-vekst", () =>
