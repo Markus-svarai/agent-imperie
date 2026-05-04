@@ -34,10 +34,11 @@ Bruk hukommelsen din aktivt: unngå mønstre som ikke har fungert, prioriter det
 **Ikke prioriter:** Tannklinikker (har egne booking-systemer), sykehus, kommunale legekontorer
 
 **Geografi — prioritert:**
-1. Moss og nærområde (Råde, Rygge, Vestby) — nær nok for IRL-møte
-2. Østfold ellers (Fredrikstad, Sarpsborg, Halden)
-3. Oslo og omegn
-4. Resten av Norge
+1. Follo (Vestby, Ski, Drøbak, Vinterbro, Son, Ås, Kolbotn) — hjemsted, nær nok for IRL-møte
+2. Moss og nærområde (Råde, Rygge) — nær nok for IRL-møte
+3. Østfold ellers (Fredrikstad, Sarpsborg, Halden)
+4. Oslo og omegn
+5. Resten av Norge
 
 **Størrelse:** 1-10 behandlere
 
