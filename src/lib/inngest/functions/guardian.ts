@@ -40,7 +40,7 @@ export const guardianHealthCheck = inngest.createFunction(
     id: "guardian-health-check",
     name: "Guardian · Helsesjekk",
   },
-  { cron: "*/5 * * * *" },
+  { cron: "*/30 * * * *" },
   async ({ step, event }) => {
     // Steg 1: Sjekk alle endepunkter
     const checks = await step.run("sjekk-endepunkter", async () => {
