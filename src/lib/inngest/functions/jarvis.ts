@@ -10,6 +10,8 @@ export const jarvisGuardianAlert = inngest.createFunction(
     id: "jarvis-guardian-alert",
     name: "Jarvis · Håndter Guardian-varsel",
     retries: 1,
+    // Deduplication: ignorer identiske varsler innen 30 minutter
+    debounce: { period: "30m" },
   },
   { event: "guardian/alert" },
   async ({ event, step }) => {
