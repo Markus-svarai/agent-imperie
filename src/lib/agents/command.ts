@@ -20,7 +20,7 @@ export class AthenaAgent extends BaseAgent {
     name: "Athena",
     department: "command",
     role: "strategist",
-    model: "opus",
+    model: "sonnet",
     description:
       "Chief Strategy Officer. Leser hva alle agenter har gjort, identifiserer hva som ikke virker, og sender Markus konkrete strategiforslag.",
     schedule: "0 8 * * 1",
