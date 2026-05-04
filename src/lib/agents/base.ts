@@ -1,3 +1,4 @@
+import Anthropic from "@anthropic-ai/sdk";
 import { anthropic, pickModel, estimateCostMicroUsd } from "@/lib/anthropic/client";
 import type {
   AgentContext,
@@ -41,6 +42,40 @@ export abstract class BaseAgent {
   }
 
   /**
+   * Wraps a single Anthropic API call with exponential backoff for 429s.
+   * Waits 5s, 10s, 20s before giving up.
+   */
+  private async callWithRetry(
+    params: Anthropic.MessageCreateParamsNonStreaming
+  ): Promise<Anthropic.Message> {
+    const delays = [5000, 10000, 20000];
+    for (let attempt = 0; attempt <= delays.length; attempt++) {
+      try {
+        return await anthropic.messages.create(params) as Anthropic.Message;
+      } catch (err) {
+        const isRateLimit =
+          err instanceof Error &&
+          (err.message.includes("429") ||
+            err.message.toLowerCase().includes("rate_limit") ||
+            err.message.toLowerCase().includes("rate limit") ||
+            (err as { status?: number }).status === 429);
+
+        if (isRateLimit && attempt < delays.length) {
+          const wait = delays[attempt]!;
+          console.warn(
+            `[${this.definition.name}] Rate limit (429) — venter ${wait / 1000}s (forsøk ${attempt + 1}/${delays.length})`
+          );
+          await new Promise((r) => setTimeout(r, wait));
+          continue;
+        }
+        throw err;
+      }
+    }
+    // unreachable, but satisfies TypeScript
+    throw new Error("callWithRetry: alle forsøk feilet");
+  }
+
+  /**
    * Default run loop: call Claude, handle tool calls iteratively, return
    * a final summary. Override for fully custom flows (e.g. multi-step
    * pipelines that don't fit a chat-with-tools model).
@@ -62,11 +97,12 @@ export abstract class BaseAgent {
 
     // Cap iterations so a runaway tool loop can't burn through tokens.
     for (let iter = 0; iter < 10; iter++) {
-      const response = await anthropic.messages.create({
+      const response = await this.callWithRetry({
         model: this.model,
         max_tokens: 4096,
         system: this.definition.systemPrompt,
         tools: this.toolsAsAnthropicSchema(),
+        stream: false,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         messages: messages as any,
       });
