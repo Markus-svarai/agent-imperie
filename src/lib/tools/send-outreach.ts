@@ -6,7 +6,7 @@
  */
 
 import { db, schema } from "@/lib/db";
-import { eq, and, gte, count } from "drizzle-orm";
+import { eq, and, gte, count, sql } from "drizzle-orm";
 import { DEFAULT_ORG_ID } from "@/lib/db/constants";
 
 const DAILY_OUTREACH_LIMIT = Number(process.env.DAILY_OUTREACH_LIMIT ?? "10");
@@ -102,6 +102,7 @@ export async function sendOutreachEmail(
     console.log(`[sendOutreach] Sender til ${input.to} emne="${input.subject}" leadId=${input.leadId ?? "ingen"}`);
 
     // Log in DB
+    const now = new Date();
     await db.insert(schema.outreachEmails).values({
       orgId: DEFAULT_ORG_ID,
       leadId: input.leadId ?? null,
@@ -111,12 +112,28 @@ export async function sendOutreachEmail(
       subject: input.subject,
       body: input.body,
       resendMessageId: data.id,
-      sentAt: new Date(),
+      sentAt: now,
     });
 
-    // Only update to "contacted" for first outreach — NOT for replies to inbound emails.
-    // Titan handles status updates via update_lead_status when replying.
-    // We skip the automatic status bump here to avoid overwriting "replied" → "contacted".
+    // Update lastContactedAt on the lead so getPendingLeads() can track follow-up timing.
+    // Also bump status to "contacted" unless already further along ("replied", "demo_booked", etc.)
+    // Titan handles status updates via update_lead_status when replying — we only set "contacted"
+    // when current status is "new" to avoid overwriting "replied" → "contacted".
+    if (input.leadId) {
+      await db
+        .update(schema.leads)
+        .set({
+          lastContactedAt: now,
+          status: sql`CASE WHEN ${schema.leads.status} = 'new' THEN 'contacted' ELSE ${schema.leads.status} END`,
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(schema.leads.id, input.leadId),
+            eq(schema.leads.orgId, DEFAULT_ORG_ID)
+          )
+        );
+    }
 
     console.log(`[sendOutreach] OK — messageId=${data.id}`);
     return { ok: true, messageId: data.id };

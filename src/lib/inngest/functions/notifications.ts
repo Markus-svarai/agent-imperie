@@ -24,17 +24,36 @@ export const onFunctionFailed = inngest.createFunction(
 
       const { function_id, error } = data;
 
-      // Utled agent-navn fra funksjon-ID: "nova-daglig-prospektering" → "Nova"
-      const agentSlug = function_id.split("-")[0] ?? "unknown";
-      const agentName = agentSlug.charAt(0).toUpperCase() + agentSlug.slice(1);
+      // Utled agent-navn fra funksjon-ID ved å prøve prefixer av stigende lengde.
+      // "nova-daglig-prospektering" → try "Nova", then "Nova-daglig" etc.
+      // Handles multi-word agent names like "guardian-health-check" → "Guardian" or "no-reply-timeout" → skip gracefully.
+      const parts = function_id.split("-");
+      let agentRecord = null;
+      for (let i = 1; i <= Math.min(parts.length, 3); i++) {
+        const slug = parts.slice(0, i).join("-");
+        const candidate = slug.charAt(0).toUpperCase() + slug.slice(1);
+        const found = await db.query.agents.findFirst({
+          where: eq(schema.agents.name, candidate),
+        });
+        if (found) {
+          agentRecord = found;
+          break;
+        }
+      }
 
-      const agentRecord = await db.query.agents.findFirst({
-        where: eq(schema.agents.name, agentName),
-      });
+      const agentName = agentRecord?.name ?? (parts[0]?.charAt(0).toUpperCase() + (parts[0]?.slice(1) ?? ""));
 
       if (!agentRecord) {
-        console.warn(`[onFunctionFailed] Ukjent agent: ${agentName} (fra ${function_id})`);
-        return { skipped: true };
+        // Non-agent function (e.g. "on-function-failed", "daily-digest") — log but don't insert orphaned run
+        console.warn(`[onFunctionFailed] Ingen agent funnet for funksjon: ${function_id} — hopper over DB-insert`);
+        // Still email Markus so it doesn't go unnoticed
+        await notifyMarkus({
+          subject: `⚠️ System-funksjon feilet: ${function_id}`,
+          agentName: function_id,
+          agentColor: "#f59e0b",
+          body: `System-funksjon **${function_id}** feilet (ingen agent-match).\n\n**Feil:** ${error?.message ?? "Ukjent feil"}`,
+        });
+        return { skipped: true, reason: "no_agent_match", functionId: function_id };
       }
 
       const errorMsg = error?.message ?? "Ukjent feil";
@@ -51,6 +70,7 @@ export const onFunctionFailed = inngest.createFunction(
           errorName: error?.name ?? "Error",
           summary: `❌ Feilet etter alle retries: ${errorMsg.slice(0, 300)}`,
         },
+        error: errorMsg.slice(0, 1000),
         startedAt: now,
         endedAt: now,
         durationMs: 0,

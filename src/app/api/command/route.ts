@@ -1,32 +1,46 @@
 /**
- * POST /api/command
- * Kjør en agent direkte fra dashboardet med en egendefinert melding.
+ * GET  /api/command  → list all available agents (from REGISTRY ∩ DB)
+ * POST /api/command  → run an agent with a custom message
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { makeCtx } from "@/lib/inngest/utils";
-import type { AgentContext, AgentOutput } from "@/lib/agents/types";
 import { checkAuth } from "@/lib/api/auth";
-import { NovaAgent } from "@/lib/agents/nova";
-import { HermesAgent } from "@/lib/agents/hermes";
-import { TitanAgent, PulseAgent } from "@/lib/agents/sales";
-import { JarvisAgent } from "@/lib/agents/jarvis";
-import { AthenaAgent } from "@/lib/agents/command";
+import { REGISTRY } from "@/lib/agents/registry";
+import { db, schema } from "@/lib/db";
+import { eq } from "drizzle-orm";
+import { DEFAULT_ORG_ID } from "@/lib/db/constants";
 
 export const maxDuration = 60;
 
-interface RunnableAgent {
-  run: (input: { message: string }, ctx: AgentContext) => Promise<AgentOutput>;
-}
+/** GET /api/command — returns all agents registered in REGISTRY, enriched with DB metadata */
+export async function GET(req: NextRequest) {
+  const authError = checkAuth(req);
+  if (authError) return authError;
 
-const AGENTS: Record<string, () => RunnableAgent> = {
-  nova: () => new NovaAgent() as unknown as RunnableAgent,
-  hermes: () => new HermesAgent() as unknown as RunnableAgent,
-  titan: () => new TitanAgent() as unknown as RunnableAgent,
-  pulse: () => new PulseAgent() as unknown as RunnableAgent,
-  jarvis: () => new JarvisAgent() as unknown as RunnableAgent,
-  athena: () => new AthenaAgent() as unknown as RunnableAgent,
-};
+  try {
+    const dbAgents = await db.query.agents.findMany({
+      where: eq(schema.agents.orgId, DEFAULT_ORG_ID),
+      columns: { id: true, name: true, department: true, description: true, model: true },
+    });
+
+    // Only expose agents that exist in both REGISTRY and DB
+    const available = dbAgents
+      .filter((a) => REGISTRY[a.name.toLowerCase()])
+      .map((a) => ({
+        id: a.name.toLowerCase(),
+        name: a.name,
+        department: a.department,
+        description: a.description ?? "",
+        model: a.model,
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    return NextResponse.json({ agents: available });
+  } catch (err) {
+    return NextResponse.json({ error: String(err) }, { status: 500 });
+  }
+}
 
 export async function POST(req: NextRequest) {
   const authError = checkAuth(req);
@@ -39,21 +53,29 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "agentName og message er påkrevd" }, { status: 400 });
     }
 
-    const factory = AGENTS[agentName.toLowerCase()];
-    if (!factory) {
-      return NextResponse.json({ error: `Ukjent agent: ${agentName}` }, { status: 400 });
+    const agentId = agentName.toLowerCase();
+    const agent = REGISTRY[agentId];
+
+    if (!agent) {
+      const available = Object.keys(REGISTRY).sort().join(", ");
+      return NextResponse.json(
+        { error: `Ukjent agent: ${agentName}. Tilgjengelige: ${available}` },
+        { status: 400 }
+      );
     }
 
-    const agent = factory();
-    const { ctx, runId, persistRun } = makeCtx(agentName.toLowerCase());
+    const { ctx, runId, persistRun, persistError } = makeCtx(agentId);
 
     console.log(`[command] Kjører ${agentName} med melding: "${message.slice(0, 80)}"`);
 
-    const output = await agent.run({ message }, ctx);
-
-    await persistRun(output, "manual");
-
-    return NextResponse.json({ ok: true, runId, output });
+    try {
+      const output = await agent.run({ message }, ctx);
+      await persistRun(output, "manual");
+      return NextResponse.json({ ok: true, runId, output });
+    } catch (err) {
+      await persistError(err, "manual");
+      throw err;
+    }
   } catch (err) {
     console.error("[command] Feil:", err);
     return NextResponse.json({ error: String(err) }, { status: 500 });

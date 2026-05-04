@@ -3,13 +3,24 @@
 import { useState, useRef, useEffect } from "react";
 import { Send, Loader2, Bot, User } from "lucide-react";
 
-const AGENTS = [
-  { id: "jarvis", name: "Jarvis", role: "Operasjonssjef", color: "text-purple-400", examples: ["Hva er statusen i dag?", "Gi meg en oversikt over systemet"] },
-  { id: "nova", name: "Nova", role: "Prospektering", color: "text-blue-400", examples: ["Søk etter hudklinikker i Fredrikstad", "Finn fysioterapiklinikker i Drammen"] },
-  { id: "hermes", name: "Hermes", role: "Outreach", color: "text-green-400", examples: ["Skriv outreach til de nye leadene", "Send oppfølging til klinikker uten svar"] },
-  { id: "titan", name: "Titan", role: "Deal Closer", color: "text-orange-400", examples: ["Sjekk opp leadene som har svart", "Lag oppfølgingsplan for interesserte klinikker"] },
-  { id: "athena", name: "Athena", role: "Strategi", color: "text-yellow-400", examples: ["Hva bør vi fokusere på denne uken?", "Analyser hva som fungerer og ikke"] },
-];
+const DEPT_COLORS: Record<string, string> = {
+  command:     "text-purple-400",
+  sales:       "text-blue-400",
+  marketing:   "text-pink-400",
+  analytics:   "text-cyan-400",
+  engineering: "text-green-400",
+  operations:  "text-orange-400",
+  finance:     "text-yellow-400",
+  research:    "text-indigo-400",
+};
+
+interface Agent {
+  id: string;
+  name: string;
+  department: string;
+  description: string;
+  model: string;
+}
 
 interface Message {
   role: "user" | "agent";
@@ -20,19 +31,38 @@ interface Message {
 }
 
 export default function CommandPage() {
-  const [selectedAgent, setSelectedAgent] = useState(AGENTS[0]);
+  const [agents, setAgents] = useState<Agent[]>([]);
+  const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingAgents, setLoadingAgents] = useState(true);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Fetch available agents from API on mount
+  useEffect(() => {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    const secret = process.env.NEXT_PUBLIC_DASHBOARD_SECRET;
+    if (secret) headers["Authorization"] = `Bearer ${secret}`;
+
+    fetch("/api/command", { headers })
+      .then((r) => r.json())
+      .then((data: { agents?: Agent[] }) => {
+        const list = data.agents ?? [];
+        setAgents(list);
+        if (list.length > 0) setSelectedAgent(list[0]);
+      })
+      .catch(console.error)
+      .finally(() => setLoadingAgents(false));
+  }, []);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   async function send() {
-    if (!message.trim() || loading) return;
+    if (!message.trim() || loading || !selectedAgent) return;
 
     const userMsg: Message = { role: "user", content: message.trim(), ts: new Date() };
     setMessages((prev) => [...prev, userMsg]);
@@ -40,14 +70,13 @@ export default function CommandPage() {
     setLoading(true);
 
     try {
+      const reqHeaders: Record<string, string> = { "Content-Type": "application/json" };
+      const secret = process.env.NEXT_PUBLIC_DASHBOARD_SECRET;
+      if (secret) reqHeaders["Authorization"] = `Bearer ${secret}`;
+
       const res = await fetch("/api/command", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(process.env.NEXT_PUBLIC_DASHBOARD_SECRET
-            ? { Authorization: `Bearer ${process.env.NEXT_PUBLIC_DASHBOARD_SECRET}` }
-            : {}),
-        },
+        headers: reqHeaders,
         body: JSON.stringify({ agentName: selectedAgent.id, message: userMsg.content }),
       });
 
@@ -84,6 +113,8 @@ export default function CommandPage() {
     }
   }
 
+  const agentColor = selectedAgent ? (DEPT_COLORS[selectedAgent.department] ?? "text-fg-muted") : "text-fg-muted";
+
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
@@ -94,42 +125,40 @@ export default function CommandPage() {
 
       {/* Agent selector */}
       <div className="border-b border-border px-6 py-3 flex gap-2 overflow-x-auto">
-        {AGENTS.map((agent) => (
-          <button
-            key={agent.id}
-            onClick={() => setSelectedAgent(agent)}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
-              selectedAgent.id === agent.id
-                ? "bg-bg-elevated text-fg border border-border"
-                : "text-fg-muted hover:text-fg hover:bg-bg-surface"
-            }`}
-          >
-            <span className={agent.color}>●</span>
-            {agent.name}
-            <span className="text-fg-subtle text-xs">{agent.role}</span>
-          </button>
-        ))}
+        {loadingAgents ? (
+          <div className="flex items-center gap-2 text-sm text-fg-muted py-1">
+            <Loader2 className="size-3 animate-spin" /> Laster agenter...
+          </div>
+        ) : (
+          agents.map((agent) => {
+            const color = DEPT_COLORS[agent.department] ?? "text-fg-muted";
+            return (
+              <button
+                key={agent.id}
+                onClick={() => { setSelectedAgent(agent); setMessages([]); }}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
+                  selectedAgent?.id === agent.id
+                    ? "bg-bg-elevated text-fg border border-border"
+                    : "text-fg-muted hover:text-fg hover:bg-bg-surface"
+                }`}
+              >
+                <span className={color}>●</span>
+                {agent.name}
+                <span className="text-fg-subtle text-xs">{agent.department}</span>
+              </button>
+            );
+          })
+        )}
       </div>
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-        {messages.length === 0 && (
+        {messages.length === 0 && selectedAgent && (
           <div className="flex flex-col items-center justify-center h-full gap-6 text-center">
-            <div className={`text-4xl ${selectedAgent.color}`}>●</div>
+            <div className={`text-4xl ${agentColor}`}>●</div>
             <div>
               <div className="font-semibold text-fg">{selectedAgent.name} er klar</div>
-              <div className="text-sm text-fg-muted mt-1">{selectedAgent.role}</div>
-            </div>
-            <div className="grid gap-2 w-full max-w-md">
-              {selectedAgent.examples.map((ex) => (
-                <button
-                  key={ex}
-                  onClick={() => setMessage(ex)}
-                  className="text-left px-4 py-2.5 rounded-lg border border-border bg-bg-surface hover:bg-bg-elevated text-sm text-fg-muted hover:text-fg transition-colors"
-                >
-                  {ex}
-                </button>
-              ))}
+              <div className="text-sm text-fg-muted mt-1">{selectedAgent.description || selectedAgent.department}</div>
             </div>
           </div>
         )}
@@ -137,7 +166,7 @@ export default function CommandPage() {
         {messages.map((msg, i) => (
           <div key={i} className={`flex gap-3 ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
             {msg.role === "agent" && (
-              <div className={`size-8 rounded-full bg-bg-elevated border border-border flex items-center justify-center shrink-0 ${selectedAgent.color}`}>
+              <div className={`size-8 rounded-full bg-bg-elevated border border-border flex items-center justify-center shrink-0 ${agentColor}`}>
                 <Bot className="size-4" />
               </div>
             )}
@@ -147,7 +176,7 @@ export default function CommandPage() {
                 : "bg-bg-elevated border border-border text-fg"
             }`}>
               {msg.role === "agent" && (
-                <div className={`text-xs font-medium mb-1.5 ${selectedAgent.color}`}>{msg.agentName}</div>
+                <div className={`text-xs font-medium mb-1.5 ${agentColor}`}>{msg.agentName}</div>
               )}
               <div className="whitespace-pre-wrap leading-relaxed">{msg.content}</div>
               <div className="text-xs mt-2 opacity-50">
@@ -165,12 +194,12 @@ export default function CommandPage() {
 
         {loading && (
           <div className="flex gap-3 justify-start">
-            <div className={`size-8 rounded-full bg-bg-elevated border border-border flex items-center justify-center ${selectedAgent.color}`}>
+            <div className={`size-8 rounded-full bg-bg-elevated border border-border flex items-center justify-center ${agentColor}`}>
               <Bot className="size-4" />
             </div>
             <div className="bg-bg-elevated border border-border rounded-xl px-4 py-3 flex items-center gap-2">
               <Loader2 className="size-4 animate-spin text-fg-muted" />
-              <span className="text-sm text-fg-muted">{selectedAgent.name} tenker...</span>
+              <span className="text-sm text-fg-muted">{selectedAgent?.name ?? "Agent"} tenker...</span>
             </div>
           </div>
         )}
@@ -186,7 +215,7 @@ export default function CommandPage() {
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={`Snakk med ${selectedAgent.name}...`}
+            placeholder={`Snakk med ${selectedAgent?.name ?? "en agent"}...`}
             rows={1}
             className="flex-1 resize-none bg-bg-surface border border-border rounded-xl px-4 py-3 text-sm text-fg placeholder:text-fg-subtle focus:outline-none focus:border-accent transition-colors min-h-[48px] max-h-[160px]"
             style={{ height: "auto" }}
@@ -198,7 +227,7 @@ export default function CommandPage() {
           />
           <button
             onClick={() => void send()}
-            disabled={!message.trim() || loading}
+            disabled={!message.trim() || loading || !selectedAgent}
             className="size-12 rounded-xl bg-accent hover:bg-accent/90 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors shrink-0"
           >
             {loading ? (

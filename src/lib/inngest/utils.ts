@@ -163,6 +163,7 @@ export function makeCtx(agentId: string, parentRunId?: string) {
           error: errorMsg,
           summary: `❌ Feil: ${errorMsg.slice(0, 300)}`,
         },
+        error: errorMsg.slice(0, 1000),
         startedAt,
         endedAt,
         durationMs,

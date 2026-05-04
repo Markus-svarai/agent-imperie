@@ -2,10 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { db, schema } from "@/lib/db";
 import { eq, desc, and } from "drizzle-orm";
 import { DEFAULT_ORG_ID } from "@/lib/db/constants";
+import { checkAuth } from "@/lib/api/auth";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
+  const authError = checkAuth(req);
+  if (authError) return authError;
+
   const { searchParams } = new URL(req.url);
   const agentName = searchParams.get("agent");
   const type = searchParams.get("type");

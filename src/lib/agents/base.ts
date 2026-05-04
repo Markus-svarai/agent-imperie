@@ -100,9 +100,15 @@ export abstract class BaseAgent {
 
     // Cap iterations so a runaway tool loop can't burn through tokens.
     for (let iter = 0; iter < 10; iter++) {
+      // Use higher token limits for larger models — Opus/Sonnet support up to 32k output.
+      // Haiku gets 4k (fast, cost-effective); Sonnet gets 8k; Opus gets 16k.
+      const maxTokensForModel =
+        this.model.includes("opus") ? 16000 :
+        this.model.includes("haiku") ? 4096 : 8000;
+
       const response = await this.callWithRetry({
         model: this.model,
-        max_tokens: 4096,
+        max_tokens: maxTokensForModel,
         system: this.definition.systemPrompt,
         tools: this.toolsAsAnthropicSchema(),
         stream: false,

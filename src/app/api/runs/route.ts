@@ -1,17 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, schema } from "@/lib/db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import { DEFAULT_ORG_ID } from "@/lib/db/constants";
+import { checkAuth } from "@/lib/api/auth";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
+  const authError = checkAuth(req);
+  if (authError) return authError;
+
   try {
     const { searchParams } = new URL(req.url);
     const limit = Math.min(Number(searchParams.get("limit") ?? 50), 100);
     const department = searchParams.get("dept") ?? null;
 
-    let query = db
+    type Department = typeof schema.agents.$inferSelect["department"];
+    const conditions = [eq(schema.agentRuns.orgId, DEFAULT_ORG_ID)];
+    if (department) {
+      conditions.push(eq(schema.agents.department, department as Department));
+    }
+
+    const runs = await db
       .select({
         id: schema.agentRuns.id,
         status: schema.agentRuns.status,
@@ -29,11 +39,9 @@ export async function GET(req: NextRequest) {
       })
       .from(schema.agentRuns)
       .leftJoin(schema.agents, eq(schema.agentRuns.agentId, schema.agents.id))
-      .where(eq(schema.agentRuns.orgId, DEFAULT_ORG_ID))
+      .where(and(...conditions))
       .orderBy(desc(schema.agentRuns.createdAt))
       .limit(limit);
-
-    const runs = await query;
 
     return NextResponse.json({
       runs: runs.map((r) => ({
