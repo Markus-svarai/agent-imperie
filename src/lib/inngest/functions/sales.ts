@@ -4,7 +4,6 @@ import { TitanAgent } from "@/lib/agents/sales";
 import { PulseAgent } from "@/lib/agents/sales";
 import { RexAgent } from "@/lib/agents/sales";
 import { appendMemory } from "@/lib/tools/memory";
-import { notifySlack } from "@/lib/notify/slack";
 import { notifyMarkus } from "@/lib/tools/notify";
 import { db, schema } from "@/lib/db";
 import { and, eq, lte, inArray } from "drizzle-orm";

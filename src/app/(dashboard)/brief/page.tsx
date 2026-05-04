@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   Mail, MailOpen, PhoneCall, XCircle, Clock, RefreshCw,
   Loader2, CalendarPlus, ChevronDown, ChevronUp, AlertCircle,
@@ -568,7 +568,7 @@ export default function BriefPage() {
                       </div>
                       <div className="flex items-center gap-3 mt-3">
                         <Link
-                          href={"/command" as "/dashboard"}
+                          href={"/command" as never}
                           className="flex items-center gap-1.5 text-xs text-accent hover:underline"
                         >
                           <MessageSquare className="size-3" />
@@ -798,7 +798,7 @@ export default function BriefPage() {
                   )}
                 </div>
                 <Link
-                  href={"/command" as "/dashboard"}
+                  href={"/command" as never}
                   className="flex items-center gap-1 text-xs text-accent hover:underline shrink-0"
                 >
                   Følg opp <ArrowRight className="size-3" />
