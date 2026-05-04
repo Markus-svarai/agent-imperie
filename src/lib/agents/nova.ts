@@ -1,6 +1,7 @@
 import { BaseAgent } from "./base";
 import type { AgentDefinition } from "./types";
 import { searchClinics, storeLead, getPipelineStats } from "@/lib/tools/find-clinics";
+import { enrichAndUpdateLead } from "@/lib/tools/enrich-lead";
 import { getMemory, setMemory, appendMemory, getAllMemory } from "@/lib/tools/memory";
 
 export class NovaAgent extends BaseAgent {
@@ -105,7 +106,14 @@ Skriv på norsk. Vær konkret. Lær og forbedre deg mellom kjøringer.`,
           },
           required: ["companyName", "specialty", "location", "fitScore", "painPoint", "approachAngle"],
         },
-        handler: async (input: unknown) => storeLead(input as Parameters<typeof storeLead>[0]),
+        handler: async (input: unknown) => {
+          const id = await storeLead(input as Parameters<typeof storeLead>[0]);
+          // Automatisk berik med telefon + kontaktnavn i bakgrunnen
+          if (id && id !== "error") {
+            void enrichAndUpdateLead(id);
+          }
+          return id;
+        },
       },
       {
         name: "set_memory",
