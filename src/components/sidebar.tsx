@@ -9,7 +9,6 @@ import {
   FileText,
   Bell,
   Settings,
-  Sparkles,
   Crown,
   MessageSquare,
   ClipboardList,
@@ -35,12 +34,30 @@ export function Sidebar() {
     <aside className="w-60 shrink-0 border-r border-border bg-bg-subtle flex flex-col">
       <div className="px-5 py-5 border-b border-border">
         <Link href="/dashboard" className="flex items-center gap-2.5">
-          <div className="size-8 rounded-lg bg-gradient-to-br from-accent to-accent-glow flex items-center justify-center shadow-glow">
-            <Sparkles className="size-4 text-white" strokeWidth={2.5} />
+          <div className="size-8 shrink-0">
+            <svg viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg" width="32" height="32">
+              <rect width="96" height="96" rx="20" fill="#0b0c1a"/>
+              <polygon points="48,10 80,28 80,64 48,82 16,64 16,28" fill="none" stroke="#1e1f3a" strokeWidth="1.5"/>
+              <polygon points="48,22 70,34 70,58 48,70 26,58 26,34" fill="none" stroke="#2d2f5a" strokeWidth="1"/>
+              <polyline points="33,67 48,27 63,67" fill="none" stroke="url(#sg)" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round"/>
+              <line x1="40" y1="51" x2="56" y2="51" stroke="url(#sg)" strokeWidth="4" strokeLinecap="round"/>
+              <circle cx="48" cy="10" r="2" fill="#a78bfa"/>
+              <circle cx="80" cy="28" r="2" fill="#a78bfa" opacity="0.6"/>
+              <circle cx="80" cy="64" r="2" fill="#6366f1" opacity="0.6"/>
+              <circle cx="48" cy="82" r="2" fill="#a78bfa"/>
+              <circle cx="16" cy="64" r="2" fill="#6366f1" opacity="0.6"/>
+              <circle cx="16" cy="28" r="2" fill="#a78bfa" opacity="0.6"/>
+              <defs>
+                <linearGradient id="sg" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#a78bfa"/>
+                  <stop offset="100%" stopColor="#6366f1"/>
+                </linearGradient>
+              </defs>
+            </svg>
           </div>
           <div>
             <div className="text-sm font-semibold tracking-tight">
-              Markus sine slaver
+              Agent Imperie
             </div>
             <div className="text-[11px] text-fg-subtle uppercase tracking-wider">
               Commander

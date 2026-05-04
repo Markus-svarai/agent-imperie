@@ -9,7 +9,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Markus sine slaver",
+  title: "Agent Imperie",
   description:
     "Operasjonssenter for autonome AI-agenter. Se status, kjøringer og resultater på tvers av hele flåten.",
 };
