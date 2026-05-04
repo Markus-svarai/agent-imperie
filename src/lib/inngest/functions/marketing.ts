@@ -146,32 +146,30 @@ export const prismReviewer = inngest.createFunction(
       )
     );
 
-    // Robust approval detection — check multiple patterns, avoid false negatives
+    // Approval detection — explicit rejection signals beat everything else
     const summaryLower = output.summary.toLowerCase();
-    const godkjent =
-      output.summary.includes("✅") ||
-      summaryLower.includes("godkjent") ||
-      summaryLower.includes("approved") ||
-      summaryLower.includes("klar for publisering") ||
-      summaryLower.includes("kan publiseres") ||
-      summaryLower.includes("ser bra ut") ||
-      summaryLower.includes("anbefaler publisering");
 
-    const avvist =
+    // Hard rejection signals — must be present to reject
+    const harAvvisning =
       summaryLower.includes("ikke godkjent") ||
       summaryLower.includes("avvist") ||
       summaryLower.includes("rejected") ||
       summaryLower.includes("bør endres") ||
-      summaryLower.includes("ikke klar");
+      summaryLower.includes("ikke klar for publisering") ||
+      summaryLower.includes("trenger revisjon");
 
-    if (godkjent && !avvist) {
+    // Default to approved — only reject on clear negative signal.
+    // This prevents content from being silently dropped on ambiguous output.
+    const godkjent = !harAvvisning;
+
+    if (godkjent) {
       await step.run("send-til-echo", async () => {
         await inngest.send({
           name: "prism/content.approved",
           data: { innhold, review: output.summary, prismRunId: runId },
         });
       });
-    } else if (avvist) {
+    } else {
       // Send tilbake til Muse for revisjon
       await step.run("send-til-muse-revisjon", async () => {
         await inngest.send({
@@ -183,7 +181,7 @@ export const prismReviewer = inngest.createFunction(
 
     await step.run("lagre-kjøring", () => persistRun(output));
 
-    return { runId, review: output.summary, godkjent: godkjent && !avvist, usage: output.usage, logs };
+    return { runId, review: output.summary, godkjent, usage: output.usage, logs };
   }
 );
 
