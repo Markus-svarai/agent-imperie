@@ -14,7 +14,7 @@ async function sjekkEndepunkt(name: string, url: string): Promise<HealthCheck> {
   try {
     const res = await fetch(url, {
       method: "GET",
-      signal: AbortSignal.timeout(5000), // 5 sekunder timeout
+      signal: AbortSignal.timeout(8000),
     });
     return {
       name,
@@ -39,31 +39,33 @@ export const guardianHealthCheck = inngest.createFunction(
   {
     id: "guardian-health-check",
     name: "Guardian · Helsesjekk",
+    // Maks 1 alert per 2 timer — forhindrer spam hvis appen er nede over tid
+    rateLimit: {
+      event: "guardian/alert",
+      limit: 1,
+      period: "2h",
+    },
   },
-  { cron: "0 */4 * * *" }, // Hver 4. time (var hvert 30. min — for dyrt)
-  async ({ step, event }) => {
-    // Steg 1: Sjekk alle endepunkter
+  // Kl. 08:00 og 20:00 hver dag (norsk tid ≈ UTC+2 sommertime)
+  { cron: "0 6,18 * * *" },
+  async ({ step }) => {
     const checks = await step.run("sjekk-endepunkter", async () => {
       const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
-      // NOTE: /api/inngest only handles POST (Inngest SDK), not GET.
-      // Use /api/dashboard/stats as a proper GET health endpoint instead.
+      // Bruk /api/health — lett endepunkt uten DB-avhengighet.
+      // /api/dashboard/stats ga falske positiver ved Supabase-latens.
       const resultater = await Promise.all([
-        sjekkEndepunkt("App", appUrl),
-        sjekkEndepunkt("Dashboard API", `${appUrl}/api/dashboard/stats`),
+        sjekkEndepunkt("App", `${appUrl}/api/health`),
       ]);
 
       return resultater;
     });
 
-    // Steg 2: Finn feil
     const feil = checks.filter((c) => c.status === "feil");
     const alleOk = feil.length === 0;
 
-    // Steg 3: Send varsel hvis noe er nede
     if (!alleOk) {
       await step.run("send-varsel", async () => {
-        // Send event til Inngest — kan brukes til å trigge Jarvis eller notifikasjoner
         await inngest.send({
           name: "guardian/alert",
           data: {
@@ -73,7 +75,6 @@ export const guardianHealthCheck = inngest.createFunction(
             melding: `⚠️ Guardian oppdaget ${feil.length} feil: ${feil.map((f) => f.name).join(", ")}`,
           },
         });
-
         console.error(
           "[Guardian] VARSEL:",
           feil.map((f) => `${f.name} — ${f.error ?? f.httpStatus}`).join(", ")
