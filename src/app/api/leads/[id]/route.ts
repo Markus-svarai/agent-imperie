@@ -8,11 +8,12 @@ export const dynamic = "force-dynamic";
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const authError = checkAuth(req);
   if (authError) return authError;
 
+  const { id } = await params;
   const body = await req.json() as Record<string, unknown>;
 
   // Whitelist oppdaterbare felter
@@ -36,7 +37,7 @@ export async function PATCH(
     .set(update)
     .where(
       and(
-        eq(schema.leads.id, params.id),
+        eq(schema.leads.id, id),
         eq(schema.leads.orgId, DEFAULT_ORG_ID)
       )
     );
