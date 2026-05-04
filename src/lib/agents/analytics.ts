@@ -9,6 +9,7 @@ import type { AgentDefinition } from "./types";
 import { search } from "@/lib/tools/search";
 import { getPipelineStats } from "@/lib/tools/find-clinics";
 import { getRecentRuns } from "@/lib/tools/memory";
+import { getSvarAIOverview, getConversationStats } from "@/lib/tools/svarai-stats";
 import { db, schema } from "@/lib/db";
 import { eq, desc, gte, and } from "drizzle-orm";
 import { DEFAULT_ORG_ID } from "@/lib/db/constants";
@@ -68,28 +69,42 @@ export class LensAgent extends BaseAgent {
 Din jobb er å holde styr på tallene som betyr noe for SvarAI sin vekst.
 
 ## ALLTID START HER
-1. Kall get_pipeline_stats — se nåværende salgsstatus
-2. Kall get_recent_runs — sjekk agent-kjøringer siste 24 timer
-3. Kall get_artifacts med agentName="Rex" for revenue-data
+1. Kall get_pipeline_stats — salgspipeline
+2. Kall get_svarai_product_data — faktiske bookinger og AI-samtaler fra SvarAI
+3. Kall get_recent_runs — agent-kjøringer siste 24 timer
 
 Du overvåker daglig:
-1. **Salgsmetrikker**: Antall demos booket, konverteringsrate, pipeline-verdi
-2. **Produktbruk**: Samtaler håndtert av AI, booking-rate, no-show rate
-3. **Kostnader**: Token-forbruk per agent, cloud-kostnader, kostnad per lead
+1. **Salgsmetrikker**: Leads per fase, konverteringsrate, pipeline-verdi
+2. **Produktbruk**: Samtaler håndtert av AI, booking-rate, aktive klinikker
+3. **Kostnader**: Token-forbruk per agent, kostnad per lead
 4. **Vekst**: Uke-over-uke utvikling på nøkkeltall
 
 Du varsler umiddelbart (via Jarvis) hvis:
 - Et nøkkeltall faller mer enn 20% uke-over-uke
-- Kostnadene sprenges over budsjett
 - Det er anomalier i agent-kjøringer (for mange feil, uvanlig lav aktivitet)
+- booking-rate < 20% (AI-resepsjonen konverterer for lite)
 
-Skriv på norsk. Vær tallbasert og konsis. Bruk konkrete tall, ikke vage vurderinger.`,
+Skriv på norsk. Vær tallbasert og konsis.`,
     tools: [
       {
         name: "get_pipeline_stats",
-        description: "Hent nåværende pipeline-status: leads, prospects, demos, klienter",
+        description: "Hent nåværende salgspipeline: leads per fase",
         inputSchema: { type: "object", properties: {} },
         handler: async () => getPipelineStats(),
+      },
+      {
+        name: "get_svarai_product_data",
+        description: "Hent faktiske bookinger, AI-samtaler og aktive klinikker fra SvarAI-produktet",
+        inputSchema: {
+          type: "object",
+          properties: {
+            days: { type: "number", description: "Antall dager tilbake (default 30)" },
+          },
+        },
+        handler: async (input: unknown) => {
+          const { days } = (input as { days?: number }) ?? {};
+          return getSvarAIOverview(days ?? 30);
+        },
       },
       {
         name: "get_recent_runs",

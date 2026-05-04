@@ -9,6 +9,7 @@ import type { AgentDefinition } from "./types";
 import { sendOutreachEmail, getRepliedLeads, getPendingLeads } from "@/lib/tools/send-outreach";
 import { getPipelineStats } from "@/lib/tools/find-clinics";
 import { getAllMemory, setMemory, appendMemory } from "@/lib/tools/memory";
+import { getSvarAIOverview, getBookingStats, getConversationStats } from "@/lib/tools/svarai-stats";
 import { db, schema } from "@/lib/db";
 import { eq } from "drizzle-orm";
 import { DEFAULT_ORG_ID } from "@/lib/db/constants";
@@ -237,31 +238,32 @@ export class RexAgent extends BaseAgent {
     role: "revenue",
     model: "sonnet",
     description:
-      "Revenue Analyst. Pipeline-analyse, konverteringsrater og ukentlig ARR-prognose.",
+      "Revenue Analyst. Pipeline-analyse, konverteringsrater, bookingdata fra SvarAI og ukentlig ARR-prognose.",
     schedule: "0 9 * * 5",
     systemPrompt: `Du er Rex, Revenue Analyst for SvarAI.
 
 Din jobb er å gi Markus en presis, ærlig forståelse av pipeline-helse og vei til første inntekt.
 
 ## Kontekst
-SvarAI er i tidlig pilotfase. 0 betalende kunder.
-Målet er 2-3 pilotklinikker gratis → deretter konvertere til betalende.
+SvarAI er i tidlig pilotfase. Målet er 2-3 pilotklinikker gratis → deretter konvertere til betalende.
 Forventet månedspris per klinikk: 1 500–3 000 kr/mnd.
 
-Du analyserer ukentlig:
-1. **Pipeline-status** — vis alltid antall leads per fase øverst
-2. **Fremdrift mot pilotmål** — er vi på vei til å fylle de 2-3 pilotplassene?
-3. **Konverteringsrater** — fra prospekt → kontaktet → svar → demo → pilot
-4. **Aktivitetsnivå** — sendte Nova nok nye leads denne uken? Svarte Hermes raskt?
-5. **ARR-prognose** — realistisk estimat gitt nåværende pipeline
-6. **Flaskehalser** — hvor stopper leads opp?
+## ALLTID START MED disse to
+1. Kall get_pipeline_stats → prospects og salgspipeline
+2. Kall get_svarai_overview → faktiske bookinger og samtaler fra SvarAI-produktet
 
-Format: kortfattet rapport med faktiske tall, trender og én konkret anbefaling til Markus.
-Start alltid med pipeline-oversikten. Skriv på norsk. Vær ærlig — ikke overdriv potensial.`,
+## Du analyserer ukentlig:
+1. **Pipeline-status** — antall leads per fase (prospekt → kontakt → svar → demo → pilot)
+2. **SvarAI produktdata** — faktiske bookinger, samtale-til-booking-rate, aktive klinikker
+3. **Fremdrift mot pilotmål** — er vi på vei?
+4. **Konverteringsrater** og flaskehalser
+5. **ARR-prognose** — realistisk estimat gitt nåværende data
+
+Format: kortfattet rapport med faktiske tall. Skriv på norsk. Vær ærlig.`,
     tools: [
       {
         name: "get_pipeline_stats",
-        description: "Hent pipeline-statistikk fordelt på status",
+        description: "Hent salgspipeline — leads per fase",
         inputSchema: { type: "object", properties: {} },
         handler: async () => {
           const allLeads = await db.query.leads.findMany({
@@ -272,6 +274,34 @@ Start alltid med pipeline-oversikten. Skriv på norsk. Vær ærlig — ikke over
             return acc;
           }, {});
           return { total: allLeads.length, byStatus };
+        },
+      },
+      {
+        name: "get_svarai_overview",
+        description: "Hent bookinger, samtaler og aktive klinikker fra SvarAI-produktet",
+        inputSchema: {
+          type: "object",
+          properties: {
+            days: { type: "number", description: "Antall dager tilbake (default 30)" },
+          },
+        },
+        handler: async (input: unknown) => {
+          const { days } = (input as { days?: number }) ?? {};
+          return getSvarAIOverview(days ?? 30);
+        },
+      },
+      {
+        name: "get_booking_trend",
+        description: "Hent bookingtrend for en spesifikk periode",
+        inputSchema: {
+          type: "object",
+          properties: {
+            days: { type: "number", description: "Antall dager (f.eks. 7, 14, 30, 90)" },
+          },
+        },
+        handler: async (input: unknown) => {
+          const { days } = (input as { days?: number }) ?? {};
+          return getBookingStats(days ?? 30);
         },
       },
     ],

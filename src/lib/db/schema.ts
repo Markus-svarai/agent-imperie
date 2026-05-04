@@ -445,6 +445,69 @@ export const strategyProposals = pgTable(
   })
 );
 
+// ---------- SvarAI product tables (shared DB) ----------
+// These tables are owned by the SvarAI app but live in the same Supabase project
+// so agents in Agent Imperie can read them directly for analytics and learning.
+
+export const svaraiClinics = pgTable("clinics", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  type: text("type").notNull().default("generell"),
+  tagline: text("tagline"),
+  addressStreet: text("address_street"),
+  addressPostal: text("address_postal"),
+  addressCity: text("address_city"),
+  contactPhone: text("contact_phone"),
+  contactEmail: text("contact_email"),
+  contactWebsite: text("contact_website"),
+  cancellationPolicy: text("cancellation_policy"),
+  bookingLeadHours: integer("booking_lead_hours").notNull().default(2),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const svaraiBookings = pgTable(
+  "bookings",
+  {
+    id: text("id").primaryKey(),
+    clinicId: text("clinic_id").notNull(),
+    serviceId: text("service_id"),
+    serviceName: text("service_name"),
+    date: text("date").notNull(),
+    time: text("time").notNull(),
+    name: text("name").notNull(),
+    phone: text("phone").notNull(),
+    email: text("email").notNull(),
+    status: text("status").notNull().default("pending"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => ({
+    clinicIdx: index("bookings_clinic_idx").on(t.clinicId),
+    dateIdx: index("bookings_date_idx").on(t.date),
+    statusIdx: index("bookings_status_idx").on(t.status),
+    createdIdx: index("bookings_created_idx").on(t.createdAt),
+  })
+);
+
+export const svaraiConversations = pgTable(
+  "conversations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    clinicId: text("clinic_id").notNull(),
+    sessionId: text("session_id").notNull(),
+    messages: jsonb("messages").$type<Array<{ role: string; content: string }>>().default([]),
+    endedInBooking: boolean("ended_in_booking").default(false),
+    hasUnanswered: boolean("has_unanswered").default(false),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => ({
+    clinicIdx: index("conversations_clinic_idx").on(t.clinicId),
+    bookingIdx: index("conversations_booking_idx").on(t.endedInBooking),
+    createdIdx: index("conversations_created_idx").on(t.createdAt),
+  })
+);
+
 // ---------- relations ----------
 
 export const orgsRelations = relations(orgs, ({ many }) => ({
