@@ -42,7 +42,12 @@ export default function CommandPage() {
     try {
       const res = await fetch("/api/command", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(process.env.NEXT_PUBLIC_DASHBOARD_SECRET
+            ? { Authorization: `Bearer ${process.env.NEXT_PUBLIC_DASHBOARD_SECRET}` }
+            : {}),
+        },
         body: JSON.stringify({ agentName: selectedAgent.id, message: userMsg.content }),
       });
 

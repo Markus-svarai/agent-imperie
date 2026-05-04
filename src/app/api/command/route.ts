@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { makeCtx } from "@/lib/inngest/utils";
 import type { AgentContext, AgentOutput } from "@/lib/agents/types";
+import { checkAuth } from "@/lib/api/auth";
 import { NovaAgent } from "@/lib/agents/nova";
 import { HermesAgent } from "@/lib/agents/hermes";
 import { TitanAgent, PulseAgent } from "@/lib/agents/sales";
@@ -28,6 +29,9 @@ const AGENTS: Record<string, () => RunnableAgent> = {
 };
 
 export async function POST(req: NextRequest) {
+  const authError = checkAuth(req);
+  if (authError) return authError;
+
   try {
     const { agentName, message } = await req.json() as { agentName: string; message: string };
 

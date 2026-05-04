@@ -190,16 +190,21 @@ export const prismReviewer = inngest.createFunction(
 // Prism reviewer også Hermes-outreach
 export const prismReviewerOutreach = inngest.createFunction(
   { id: "prism-outreach-review", name: "Prism · Outreach brand review", retries: 1 },
-  { event: "hermes/outreach.ready" },
+  { event: "hermes/outreach.sent" },
   async ({ event, step }) => {
-    const { ctx, runId, logs, persistRun } = makeCtx("prism");
+    const p = safePayload(event.data, ["mottakere", "hermesRunId"]);
+    if (!p.mottakere) {
+      console.warn("[prism] hermes/outreach.sent mangler mottakere — hopper over");
+      return { skipped: true, reason: "missing_mottakere" };
+    }
+    const { ctx, runId, logs, persistRun } = makeCtx("prism", p.hermesRunId ?? undefined);
     const output = await step.run("prism-reviewerer-outreach", () =>
       prism.run(
-        { message: `Review denne outreach-meldingen fra Hermes:\n\n${event.data.melding as string}` },
+        { message: `Review denne outreach-batchen fra Hermes for brand-samsvar og tone:\n\n${p.mottakere}` },
         ctx
       )
     );
-    await step.run("lagre-kjøring", () => persistRun(output));
+    await step.run("lagre-kjøring", () => persistRun(output, "event"));
 
     return { runId, review: output.summary, usage: output.usage, logs };
   }

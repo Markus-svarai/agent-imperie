@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { REGISTRY } from "@/lib/agents/registry";
 import { makeCtx, dagsDato } from "@/lib/inngest/utils";
+import { checkAuth } from "@/lib/api/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -8,6 +9,8 @@ export async function POST(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const authError = checkAuth(_req);
+  if (authError) return authError;
   const { id } = await params;
   const agent = REGISTRY[id];
 

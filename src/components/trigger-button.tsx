@@ -18,6 +18,11 @@ export function TriggerButton({ agentId }: { agentId: string }) {
     try {
       const res = await fetch(`/api/agents/${agentId}/trigger`, {
         method: "POST",
+        headers: {
+          ...(process.env.NEXT_PUBLIC_DASHBOARD_SECRET
+            ? { Authorization: `Bearer ${process.env.NEXT_PUBLIC_DASHBOARD_SECRET}` }
+            : {}),
+        },
       });
       const data = await res.json();
 

@@ -51,7 +51,10 @@ export abstract class BaseAgent {
     const delays = [5000, 10000, 20000];
     for (let attempt = 0; attempt <= delays.length; attempt++) {
       try {
-        return await anthropic.messages.create(params) as Anthropic.Message;
+        return await anthropic.messages.create(
+          params,
+          { signal: AbortSignal.timeout(30_000) }
+        ) as Anthropic.Message;
       } catch (err) {
         const isRateLimit =
           err instanceof Error &&

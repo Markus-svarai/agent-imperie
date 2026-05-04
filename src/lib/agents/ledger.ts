@@ -1,5 +1,8 @@
 import { BaseAgent } from "./base";
 import type { AgentDefinition, AgentInput, AgentContext, AgentOutput } from "./types";
+import { db, schema } from "@/lib/db";
+import { eq, and, gte, count, sum } from "drizzle-orm";
+import { DEFAULT_ORG_ID } from "@/lib/db/constants";
 
 export class LedgerAgent extends BaseAgent {
   definition: AgentDefinition = {
@@ -35,16 +38,43 @@ Format: kort ingress, deretter punktliste med nøkkeltall, avslutt med anbefalt 
       day: "numeric",
     });
 
+    // Hent ekte systemdata fra databasen
+    const since24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+    const [agentRows, runRows, costRows] = await Promise.all([
+      db.query.agents.findMany({
+        where: eq(schema.agents.orgId, DEFAULT_ORG_ID),
+        columns: { id: true, status: true, name: true },
+      }),
+      db.select({ total: count() })
+        .from(schema.agentRuns)
+        .where(and(
+          eq(schema.agentRuns.orgId, DEFAULT_ORG_ID),
+          gte(schema.agentRuns.startedAt, since24h)
+        )),
+      db.select({ totalCost: sum(schema.agentRuns.costMicroUsd) })
+        .from(schema.agentRuns)
+        .where(and(
+          eq(schema.agentRuns.orgId, DEFAULT_ORG_ID),
+          gte(schema.agentRuns.startedAt, since24h)
+        )),
+    ]);
+
+    const aktiveAgenter = agentRows.filter(a => a.status === "active").length;
+    const kjøringerSiste24t = runRows[0]?.total ?? 0;
+    const kostnadSiste24tUsd = ((Number(costRows[0]?.totalCost ?? 0)) / 1_000_000).toFixed(4);
+
     const briefData = {
       dato,
-      agenter: 7,
-      aktiveAgenter: 1, // Guardian kjører
-      kjøringerSiste24t: input.data?.runs ?? 0,
+      agenter: agentRows.length,
+      aktiveAgenter,
+      kjøringerSiste24t,
+      kostnadSiste24tUsd,
       status: "ok",
     };
 
     await ctx.log("tool_call", {
-      title: "Henter systemdata",
+      title: "Henter systemdata fra DB",
       output: briefData,
     });
 
@@ -57,7 +87,9 @@ Format: kort ingress, deretter punktliste med nøkkeltall, avslutt med anbefalt 
       messages: [
         {
           role: "user",
-          content: `Lag daglig brief for ${dato}. Systemdata: ${JSON.stringify(briefData, null, 2)}`,
+          content: `Lag daglig brief for ${dato}. Ekte systemdata fra databasen: ${JSON.stringify(briefData, null, 2)}
+
+Inkluder kostnad (${kostnadSiste24tUsd} USD siste 24t) i rapporten.`,
         },
       ],
     });
