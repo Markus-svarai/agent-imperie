@@ -302,6 +302,7 @@ export const leadStatusEnum = pgEnum("lead_status", [
   "not_interested",
   "no_reply",       // contacted but no response after 7 days
   "unsubscribed",
+  "bounced",        // hard bounce — invalid email address
 ]);
 
 export const leads = pgTable(
