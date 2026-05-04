@@ -5,6 +5,7 @@ import { PulseAgent } from "@/lib/agents/sales";
 import { RexAgent } from "@/lib/agents/sales";
 import { appendMemory } from "@/lib/tools/memory";
 import { notifySlack } from "@/lib/notify/slack";
+import { notifyMarkus } from "@/lib/tools/notify";
 import { db, schema } from "@/lib/db";
 import { and, eq, lte, inArray } from "drizzle-orm";
 import { DEFAULT_ORG_ID } from "@/lib/db/constants";
@@ -251,6 +252,20 @@ VIKTIG: Du MÅ svare med send_reply uansett om brødteksten er tom. Emnelinjen a
     console.log(`[titan] Tokens: input=${output.usage?.inputTokens ?? 0} output=${output.usage?.outputTokens ?? 0}`);
 
     await step.run("lagre-kjøring", () => persistRun(output, "event"));
+
+    // Varsle Markus om at Titan har svart
+    await step.run("varsle-markus", () =>
+      notifyMarkus({
+        subject: `Titan svarte på e-post fra ${fromEmail}`,
+        agentName: "Titan",
+        agentColor: "#f97316",
+        body: `Mottok svar fra: ${fromEmail}\nEmne: ${subject}\n\n${output.summary}`,
+        runId,
+        ctaLabel: "Se kjøringen",
+        ctaUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? "https://agentimperie.vercel.app"}/runs`,
+      })
+    );
+
     return { runId, svar: output.summary, usage: output.usage, logs };
   }
 );

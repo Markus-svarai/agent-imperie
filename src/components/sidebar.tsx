@@ -11,11 +11,13 @@ import {
   Settings,
   Sparkles,
   Crown,
+  MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV: Array<{ href: string; label: string; icon: React.ElementType }> = [
   { href: "/dashboard", label: "Oversikt", icon: LayoutDashboard },
+  { href: "/command", label: "Kommando", icon: MessageSquare },
   { href: "/agents", label: "Agenter", icon: Users },
   { href: "/runs", label: "Kjøringer", icon: Activity },
   { href: "/artifacts", label: "Resultater", icon: FileText },

@@ -2,6 +2,7 @@ import { inngest } from "../client";
 import { makeCtx, safePayload } from "../utils";
 import { HermesAgent } from "@/lib/agents/hermes";
 import { setMemory } from "@/lib/tools/memory";
+import { notifyMarkus } from "@/lib/tools/notify";
 
 const hermes = new HermesAgent();
 
@@ -40,6 +41,19 @@ export const hermesSkrivMeldinger = inngest.createFunction(
     });
 
     await step.run("lagre-kjøring", () => persistRun(output, "event"));
+
+    // Varsle Markus om hva Hermes sendte
+    await step.run("varsle-markus", () =>
+      notifyMarkus({
+        subject: `Hermes har sendt outreach`,
+        agentName: "Hermes",
+        agentColor: "#22c55e",
+        body: output.summary,
+        runId,
+        ctaLabel: "Se kjøringen",
+        ctaUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? "https://agentimperie.vercel.app"}/runs`,
+      })
+    );
 
     return {
       runId,

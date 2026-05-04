@@ -1,6 +1,7 @@
 import { inngest } from "../client";
 import { makeCtx } from "../utils";
 import { NovaAgent } from "@/lib/agents/nova";
+import { notifyMarkus } from "@/lib/tools/notify";
 
 const nova = new NovaAgent();
 
@@ -31,6 +32,19 @@ export const novaProspektering = inngest.createFunction(
         data: { leadliste: output.summary, novaRunId: runId, dato: new Date().toISOString() },
       });
     });
+
+    // Varsle Markus om hva Nova fant
+    await step.run("varsle-markus", () =>
+      notifyMarkus({
+        subject: `Nova er ferdig — nye leads funnet`,
+        agentName: "Nova",
+        agentColor: "#3b82f6",
+        body: output.summary,
+        runId,
+        ctaLabel: "Se kjøringen",
+        ctaUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? "https://agentimperie.vercel.app"}/runs`,
+      })
+    );
 
     return { runId, leadliste: output.summary, artifacts: output.artifacts, usage: output.usage, logs };
   }
