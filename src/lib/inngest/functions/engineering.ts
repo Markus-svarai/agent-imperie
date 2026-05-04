@@ -133,7 +133,7 @@ export const sentinelQA = inngest.createFunction(
 
 export const patchInfraCheck = inngest.createFunction(
   { id: "patch-infra-check", name: "Patch · Infrastruktursjekk", retries: 2 },
-  { cron: "0 */6 * * *" },
+  { cron: "0 3 * * *" }, // Daglig kl 03 (var hvert 6. time — 4x/dag unødvendig)
   async ({ step }) => {
     const { ctx, runId, logs, persistRun } = makeCtx("patch");
     const output = await step.run("patch-sjekker-infra", () =>

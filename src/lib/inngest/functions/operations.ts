@@ -12,7 +12,7 @@ const kronos = new KronosAgent();
 
 export const vaultSikkerhetssjekk = inngest.createFunction(
   { id: "vault-sikkerhetssjekk", name: "Vault · Nattlig sikkerhetssjekk", retries: 2 },
-  { cron: "0 3 * * *" },
+  { cron: "0 3 * * 1" }, // Mandag kl 03 — ukentlig (daglig er overkill)
   async ({ step }) => {
     const { ctx, runId, logs, persistRun } = makeCtx("vault");
     const output = await step.run("vault-scanner", () =>

@@ -9,7 +9,7 @@ export class LedgerAgent extends BaseAgent {
     name: "Ledger",
     department: "finance" as const,
     role: "reporter",
-    model: "sonnet",
+    model: "haiku", // DB-summering og rapportering — haiku er tilstrekkelig
     description: "Rapporterer aktivitet, revenue og nøkkeltall. Daglig brief klar hver morgen kl. 06.",
     schedule: "0 6 * * *",
     systemPrompt: `Du er Ledger, en presis og analytisk rapporteringsagent for Agent Imperie.

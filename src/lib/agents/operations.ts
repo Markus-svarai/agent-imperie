@@ -15,9 +15,9 @@ export class VaultAgent extends BaseAgent {
     name: "Vault",
     department: "operations",
     role: "security",
-    model: "sonnet",
+    model: "haiku", // Ukentlig sikkerhetssjekk — haiku er tilstrekkelig for strukturert scanning
     description:
-      "Security Auditor. Daglig kode-skanning for sårbarheter, avhengighetssjekk og sikkerhetsrapport.",
+      "Security Auditor. Ukentlig kode-skanning for sårbarheter, avhengighetssjekk og sikkerhetsrapport.",
     schedule: "0 3 * * *",
     systemPrompt: `Du er Vault, Security Auditor for Agent Imperie.
 

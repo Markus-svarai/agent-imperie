@@ -282,7 +282,7 @@ export class NexusAgent extends BaseAgent {
     name: "Nexus",
     department: "command",
     role: "coordinator",
-    model: "sonnet",
+    model: "haiku", // Daglig koordinering = strukturert planlegging, ikke avansert reasoning
     description:
       "Chief of Staff. Koordinerer avdelinger, løser konflikter og sender daglig prioriteringskø til Jarvis.",
     schedule: "30 6 * * *",

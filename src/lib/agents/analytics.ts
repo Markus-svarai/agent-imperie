@@ -191,7 +191,7 @@ export class QuillAgent extends BaseAgent {
     name: "Quill",
     department: "analytics",
     role: "synthesizer",
-    model: "sonnet",
+    model: "haiku", // Sammenstille og formatere rapport — haiku er nok
     description:
       "Report Synthesizer. Sammenstiller output fra alle analytikere til én executive summary for Ledger.",
     schedule: "0 17 * * *",

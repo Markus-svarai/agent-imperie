@@ -7,7 +7,7 @@ export class JarvisAgent extends BaseAgent {
     name: "Jarvis",
     department: "command" as const,
     role: "orchestrator",
-    model: "sonnet",
+    model: "haiku", // Morgenplan = DB-les + strukturert tekst — haiku holder
     description:
       "Operasjonssjef. Koordinerer flåten, prioriterer oppgaver, og griper inn når noe krever ettertanke.",
     systemPrompt: `Du er Jarvis, operasjonssjefen for Agent Imperie.
