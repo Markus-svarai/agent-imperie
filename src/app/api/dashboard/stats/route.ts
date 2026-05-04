@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db, schema } from "@/lib/db";
-import { eq, gte, sum, count, desc } from "drizzle-orm";
+import { and, eq, gte, sum, count, desc } from "drizzle-orm";
 import { DEFAULT_ORG_ID } from "@/lib/db/constants";
 
 export const dynamic = "force-dynamic";
@@ -22,7 +22,10 @@ export async function GET() {
       })
       .from(schema.agentRuns)
       .where(
-        eq(schema.agentRuns.orgId, DEFAULT_ORG_ID)
+        and(
+          eq(schema.agentRuns.orgId, DEFAULT_ORG_ID),
+          gte(schema.agentRuns.createdAt, today)
+        )
       );
 
     // All-time runs

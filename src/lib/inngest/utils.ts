@@ -129,7 +129,54 @@ export function makeCtx(agentId: string, parentRunId?: string) {
     }
   };
 
-  return { ctx, runId, logs, persistRun, isHalted };
+  /**
+   * Call this in catch blocks to log a failed run to DB.
+   * Used by the manual trigger route — Inngest failures are handled by onFunctionFailed.
+   * Never throws.
+   */
+  const persistError = async (
+    err: unknown,
+    trigger: "schedule" | "event" | "manual" = "schedule"
+  ) => {
+    try {
+      const agentName = agentId.charAt(0).toUpperCase() + agentId.slice(1);
+      const agentRecord = await db.query.agents.findFirst({
+        where: eq(schema.agents.name, agentName),
+      });
+
+      if (!agentRecord) {
+        console.warn(`[persistError] Agent not seeded: ${agentName}`);
+        return;
+      }
+
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      const endedAt = new Date();
+      const durationMs = endedAt.getTime() - startedAt.getTime();
+
+      await db.insert(schema.agentRuns).values({
+        orgId: DEFAULT_ORG_ID,
+        agentId: agentRecord.id,
+        status: "failed",
+        trigger,
+        input: { runId },
+        output: {
+          error: errorMsg,
+          summary: `❌ Feil: ${errorMsg.slice(0, 300)}`,
+        },
+        startedAt,
+        endedAt,
+        durationMs,
+        inputTokens: 0,
+        outputTokens: 0,
+        costMicroUsd: 0,
+        parentRunId: parentRunId ?? null,
+      });
+    } catch (persistErr) {
+      console.error("[persistError] Kunne ikke lagre feil-kjøring:", persistErr);
+    }
+  };
+
+  return { ctx, runId, logs, persistRun, persistError, isHalted };
 }
 
 /**

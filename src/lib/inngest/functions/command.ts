@@ -58,7 +58,8 @@ export const athenaReagerPaaIntel = inngest.createFunction(
   { id: "athena-reagerer-intel", name: "Athena · Reagerer på markedsintel", retries: 1 },
   { event: "oracle/intel.ready" },
   async ({ event, step }) => {
-    const { ctx, runId, logs, persistRun } = makeCtx("athena");
+    const oracleRunId = (event.data as Record<string, unknown>).oracleRunId as string | undefined;
+    const { ctx, runId, logs, persistRun } = makeCtx("athena", oracleRunId);
     const output = await step.run("athena-vurderer-intel", () =>
       athena.run(
         { message: `Oracle har levert ny markedsintelligens:\n\n${event.data.rapport as string}\n\nVurder om dette krever strategijusteringer.` },
@@ -118,7 +119,7 @@ Analyser dette og lever ett strukturert intel-sammendrag: hva skjer, hvem bevege
     await step.run("publiser-intel", async () => {
       await inngest.send({
         name: "oracle/intel.ready",
-        data: { rapport: output.summary, dato: new Date().toISOString() },
+        data: { rapport: output.summary, oracleRunId: runId, dato: new Date().toISOString() },
       });
     });
 

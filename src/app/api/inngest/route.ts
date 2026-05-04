@@ -60,7 +60,7 @@ import {
 } from "@/lib/inngest/functions/research";
 
 // Notifications
-import { dailyDigest, dealClosedVarsling } from "@/lib/inngest/functions/notifications";
+import { dailyDigest, dealClosedVarsling, onFunctionFailed } from "@/lib/inngest/functions/notifications";
 
 // Hermes
 import { hermesLaererAvScribe } from "@/lib/inngest/functions/hermes";
@@ -108,7 +108,7 @@ export const { GET, POST, PUT } = serve({
     atlasTekniskResearch, siloByggerKunnskapsbase, siloLoggBeslutning,
 
     // ── Notifications ─────────────────────────────────────────────────────
-    dailyDigest, dealClosedVarsling,
+    dailyDigest, dealClosedVarsling, onFunctionFailed,
 
     // ── Cross-agent learning ──────────────────────────────────────────────
     hermesLaererAvScribe,

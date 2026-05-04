@@ -4,7 +4,74 @@ import { eq, and, gte, lte } from "drizzle-orm";
 import { DEFAULT_ORG_ID } from "@/lib/db/constants";
 import { sendEmail, buildDigestEmail } from "@/lib/notify/email";
 import { notifySlack } from "@/lib/notify/slack";
+import { notifyMarkus } from "@/lib/tools/notify";
 import { dagsDato } from "../utils";
+
+// ─── Global feilhåndterer — logger alle agent-feil til DB ────────────────────
+// Inngest fyrer "inngest/function.failed" etter at alle retries er brukt opp.
+// Én handler dekker alle agenter — ingen endringer nødvendig i individuelle filer.
+
+export const onFunctionFailed = inngest.createFunction(
+  { id: "on-function-failed", name: "System · Logg agent-feil", retries: 0 },
+  { event: "inngest/function.failed" },
+  async ({ event, step }) => {
+    await step.run("logg-feil-i-db", async () => {
+      const data = event.data as {
+        function_id: string;
+        run_id?: string;
+        error?: { message?: string; name?: string; stack?: string };
+      };
+
+      const { function_id, error } = data;
+
+      // Utled agent-navn fra funksjon-ID: "nova-daglig-prospektering" → "Nova"
+      const agentSlug = function_id.split("-")[0] ?? "unknown";
+      const agentName = agentSlug.charAt(0).toUpperCase() + agentSlug.slice(1);
+
+      const agentRecord = await db.query.agents.findFirst({
+        where: eq(schema.agents.name, agentName),
+      });
+
+      if (!agentRecord) {
+        console.warn(`[onFunctionFailed] Ukjent agent: ${agentName} (fra ${function_id})`);
+        return { skipped: true };
+      }
+
+      const errorMsg = error?.message ?? "Ukjent feil";
+      const now = new Date();
+
+      await db.insert(schema.agentRuns).values({
+        orgId: DEFAULT_ORG_ID,
+        agentId: agentRecord.id,
+        status: "failed",
+        trigger: "schedule",
+        input: { functionId: function_id },
+        output: {
+          error: errorMsg,
+          errorName: error?.name ?? "Error",
+          summary: `❌ Feilet etter alle retries: ${errorMsg.slice(0, 300)}`,
+        },
+        startedAt: now,
+        endedAt: now,
+        durationMs: 0,
+        inputTokens: 0,
+        outputTokens: 0,
+        costMicroUsd: 0,
+        parentRunId: null,
+      });
+
+      // E-postvarsling til Markus
+      await notifyMarkus({
+        subject: `⚠️ Agent feilet: ${agentName}`,
+        agentName,
+        agentColor: "#ef4444",
+        body: `Funksjon **${function_id}** feilet etter alle retries.\n\n**Feil:** ${errorMsg}`,
+      });
+
+      return { logged: true, agent: agentName, error: errorMsg };
+    });
+  }
+);
 
 // ─── Deal-closed varsling ─────────────────────────────────────────────────────
 // Når Titan booker en demo, send øyeblikkelig varsel til Markus

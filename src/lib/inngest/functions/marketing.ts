@@ -58,7 +58,7 @@ Analyser dette og lever: (1) 3 høyprioritets søkeord vi bør rangere på, (2) 
     await step.run("brief-muse", async () => {
       await inngest.send({
         name: "beacon/seo.ready",
-        data: { anbefalinger: output.summary, dato: new Date().toISOString() },
+        data: { anbefalinger: output.summary, beaconRunId: runId, dato: new Date().toISOString() },
       });
     });
 
@@ -101,12 +101,12 @@ export const museReagerPaaBeacon = inngest.createFunction(
   { id: "muse-beacon-triggered", name: "Muse · SEO-drevet innhold", retries: 1 },
   { event: "beacon/seo.ready" },
   async ({ event, step }) => {
-    const p = safePayload(event.data, ["anbefalinger"]);
+    const p = safePayload(event.data, ["anbefalinger", "beaconRunId"]);
     if (!p.anbefalinger) {
       console.warn("[muse] beacon/seo.ready mangler anbefalinger");
       return { skipped: true, reason: "missing_anbefalinger" };
     }
-    const { ctx, runId, logs, persistRun } = makeCtx("muse");
+    const { ctx, runId, logs, persistRun } = makeCtx("muse", p.beaconRunId ?? undefined);
     const output = await step.run("muse-skriver-seo", () =>
       muse.run(
         { message: `Beacon anbefaler disse SEO-temaene:\n\n${p.anbefalinger}\n\nVelg det beste temaet og skriv innhold optimalisert for det.` },
@@ -136,7 +136,7 @@ export const prismReviewer = inngest.createFunction(
       console.warn("[prism] muse/content.ready mangler innhold");
       return { skipped: true, reason: "missing_innhold" };
     }
-    const { ctx, runId, logs, persistRun } = makeCtx("prism");
+    const { ctx, runId, logs, persistRun } = makeCtx("prism", p.museRunId ?? undefined);
     const innhold = p.innhold;
 
     const output = await step.run("prism-reviewerer", () =>
@@ -253,12 +253,12 @@ export const echoDistribuerer = inngest.createFunction(
   { id: "echo-distribuerer", name: "Echo · Distribuerer innhold", retries: 2 },
   { event: "prism/content.approved" },
   async ({ event, step }) => {
-    const p = safePayload(event.data, ["innhold"]);
+    const p = safePayload(event.data, ["innhold", "prismRunId"]);
     if (!p.innhold) {
       console.warn("[echo] prism/content.approved mangler innhold");
       return { skipped: true, reason: "missing_innhold" };
     }
-    const { ctx, runId, logs, persistRun } = makeCtx("echo");
+    const { ctx, runId, logs, persistRun } = makeCtx("echo", p.prismRunId ?? undefined);
     const innhold = p.innhold;
 
     const output = await step.run("echo-tilpasser", () =>

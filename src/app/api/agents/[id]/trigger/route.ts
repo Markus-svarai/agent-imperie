@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { REGISTRY } from "@/lib/agents/registry";
 import { makeCtx, dagsDato } from "@/lib/inngest/utils";
-import { checkAuth } from "@/lib/api/auth";
+import { checkAuth, checkRateLimit } from "@/lib/api/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -12,13 +12,17 @@ export async function POST(
   const authError = checkAuth(_req);
   if (authError) return authError;
   const { id } = await params;
+
+  const rateLimitError = checkRateLimit(id);
+  if (rateLimitError) return rateLimitError;
+
   const agent = REGISTRY[id];
 
   if (!agent) {
     return NextResponse.json({ error: `Agent ikke funnet: ${id}` }, { status: 404 });
   }
 
-  const { ctx, runId, logs, persistRun } = makeCtx(id);
+  const { ctx, runId, logs, persistRun, persistError } = makeCtx(id);
 
   try {
     const output = await agent.run(
@@ -38,6 +42,7 @@ export async function POST(
     });
   } catch (err) {
     console.error(`[trigger] ${id} feilet:`, err);
+    await persistError(err, "manual");
     return NextResponse.json(
       { ok: false, error: String(err) },
       { status: 500 }
