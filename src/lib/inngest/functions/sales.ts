@@ -198,6 +198,38 @@ export const titanVurdererNoReply = inngest.createFunction(
   }
 );
 
+// ─── Hjelpefunksjon: neste arbeidsmorgenkl. 08:00 norsk tid (UTC+2 sommer) ──
+
+function nesteArbeidsmorgen(): Date {
+  // Norsk tid ≈ UTC+2 (sommertid). 08:00 norsk = 06:00 UTC.
+  const now = new Date();
+  const target = new Date(now);
+
+  // Sett til 06:00 UTC i dag (= 08:00 norsk)
+  target.setUTCHours(6, 0, 0, 0);
+
+  // Er vi allerede etter 06:00 UTC i dag, gå til neste dag
+  if (now >= target) {
+    target.setUTCDate(target.getUTCDate() + 1);
+  }
+
+  // Hopp over helg (lørdag = 6, søndag = 0)
+  while (target.getUTCDay() === 0 || target.getUTCDay() === 6) {
+    target.setUTCDate(target.getUTCDate() + 1);
+  }
+
+  return target;
+}
+
+function erArbeidstid(): boolean {
+  const now = new Date();
+  const utcHour = now.getUTCHours();
+  const day = now.getUTCDay(); // 0=søn, 6=lør
+  const erHverdag = day >= 1 && day <= 5;
+  // 06:00–18:00 UTC = 08:00–20:00 norsk sommertid
+  return erHverdag && utcHour >= 6 && utcHour < 18;
+}
+
 // ─── Titan — reagerer på inkommende e-postsvar ────────────────────────────
 
 export const titanReagerPaaSvar = inngest.createFunction(
@@ -221,6 +253,14 @@ export const titanReagerPaaSvar = inngest.createFunction(
 
     const { ctx, runId, logs, persistRun, isHalted } = makeCtx("titan");
     if (await step.run("sjekk-kill-switch", isHalted)) return { skipped: true };
+
+    // Vent til arbeidstid (08:00–20:00 norsk, hverdager) før Titan svarer.
+    // Dette gjør systemet mer menneskelig — ingen sender svar kl. 03:00.
+    if (!erArbeidstid()) {
+      const sendTid = nesteArbeidsmorgen();
+      console.log(`[titan] Utenfor arbeidstid — venter til ${sendTid.toISOString()}`);
+      await step.sleepUntil("vent-til-arbeidstid", sendTid);
+    }
 
     if (leadId) {
       console.log(`[titan] Lead matchet: ${leadId}`);
