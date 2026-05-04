@@ -196,11 +196,25 @@ export async function GET() {
 
     const activity: ActivityItem[] = [];
 
+    // Deduplicate runs: max 1 entry per agent in the feed (most recent wins)
+    const seenAgents = new Set<string>();
+
     for (const r of recentRuns) {
       const name = r.agentName ?? "Agent";
+
+      // Skip duplicate agents — only show the latest run per agent
+      if (seenAgents.has(name)) continue;
+      seenAgents.add(name);
+
       const summary =
         ((r.output as Record<string, unknown>)?.summary as string) ?? "";
-      const shortSummary = summary.slice(0, 120).replace(/\n/g, " ");
+      // Strip markdown headers and emoji clutter for the preview line
+      const cleanSummary = summary
+        .replace(/^#+\s*/gm, "")
+        .replace(/[*_~`#]/g, "")
+        .split("\n")
+        .find((l) => l.trim().length > 10) ?? "";
+      const shortSummary = cleanSummary.slice(0, 100).trim();
       const statusIcon =
         r.status === "completed" ? "✅" : r.status === "failed" ? "❌" : "⚙️";
 

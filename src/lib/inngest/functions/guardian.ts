@@ -46,9 +46,11 @@ export const guardianHealthCheck = inngest.createFunction(
     const checks = await step.run("sjekk-endepunkter", async () => {
       const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
+      // NOTE: /api/inngest only handles POST (Inngest SDK), not GET.
+      // Use /api/dashboard/stats as a proper GET health endpoint instead.
       const resultater = await Promise.all([
         sjekkEndepunkt("App", appUrl),
-        sjekkEndepunkt("Inngest API", `${appUrl}/api/inngest`),
+        sjekkEndepunkt("Dashboard API", `${appUrl}/api/dashboard/stats`),
       ]);
 
       return resultater;
