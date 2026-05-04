@@ -19,11 +19,13 @@ export async function GET(req: NextRequest) {
     .select({
       id: schema.outreachEmails.id,
       subject: schema.outreachEmails.subject,
+      body: schema.outreachEmails.body,
       toEmail: schema.outreachEmails.toEmail,
       sentAt: schema.outreachEmails.sentAt,
       createdAt: schema.outreachEmails.createdAt,
       leadId: schema.outreachEmails.leadId,
       companyName: schema.leads.companyName,
+      contactName: schema.leads.contactName,
       specialty: schema.leads.specialty,
       location: schema.leads.location,
       leadStatus: schema.leads.status,

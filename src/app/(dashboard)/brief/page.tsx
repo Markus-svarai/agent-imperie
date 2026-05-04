@@ -14,10 +14,12 @@ import Link from "next/link";
 interface OutboundEmail {
   id: string;
   subject: string;
+  body: string | null;
   toEmail: string | null;
   sentAt: string | null;
   createdAt: string;
   companyName: string | null;
+  contactName: string | null;
   specialty: string | null;
   location: string | null;
   leadStatus: string | null;
@@ -143,6 +145,7 @@ export default function BriefPage() {
   const [days, setDays] = useState(30);
   const [expandedReply, setExpandedReply] = useState<string | null>(null);
   const [expandedDay, setExpandedDay] = useState<string | null>(null);
+  const [expandedEmail, setExpandedEmail] = useState<string | null>(null);
 
   const fetch_ = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -256,9 +259,20 @@ export default function BriefPage() {
                     {[lead.contactName, lead.specialty, lead.location].filter(Boolean).join(" · ")}
                   </div>
                   {(lead.email || lead.phone) && (
-                    <div className="text-xs text-fg-subtle mt-1">
-                      {lead.email && <span className="mr-3">✉ {lead.email}</span>}
-                      {lead.phone && <span>📞 {lead.phone}</span>}
+                    <div className="flex items-center gap-3 mt-1.5">
+                      {lead.phone && (
+                        <a
+                          href={`tel:${lead.phone.replace(/\s/g, "")}`}
+                          className="flex items-center gap-1.5 text-sm font-semibold text-yellow-400 hover:text-yellow-300 transition-colors"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <PhoneCall className="size-3.5" />
+                          {lead.phone}
+                        </a>
+                      )}
+                      {lead.email && (
+                        <span className="text-xs text-fg-subtle">✉ {lead.email}</span>
+                      )}
                     </div>
                   )}
                   {lead.notes && (
@@ -419,23 +433,56 @@ export default function BriefPage() {
                     </span>
                   </button>
                   {isOpen && (
-                    <div className="border-t border-border-subtle">
-                      {emails.map((e, i) => (
-                        <div
-                          key={e.id}
-                          className={cn(
-                            "flex items-center gap-4 px-6 py-2.5 text-xs",
-                            i % 2 === 0 ? "bg-bg-base/30" : "bg-transparent"
-                          )}
-                        >
-                          <CheckCircle2 className="size-3.5 text-status-ok shrink-0" />
-                          <span className="font-medium w-52 truncate">{e.companyName ?? "—"}</span>
-                          <span className="text-fg-subtle w-28 truncate">{e.specialty ?? "—"}</span>
-                          <span className="text-fg-subtle w-24 truncate">{e.location ?? "—"}</span>
-                          <span className="text-fg-subtle truncate flex-1">{e.subject?.slice(0, 50) ?? "—"}</span>
-                          {e.leadStatus && <StatusBadge status={e.leadStatus} />}
-                        </div>
-                      ))}
+                    <div className="border-t border-border-subtle divide-y divide-border-subtle">
+                      {emails.map((e) => {
+                        const emailOpen = expandedEmail === e.id;
+                        return (
+                          <div key={e.id}>
+                            <button
+                              onClick={() => setExpandedEmail(emailOpen ? null : e.id)}
+                              className="w-full text-left flex items-center gap-4 px-6 py-3 text-xs hover:bg-bg-elevated transition-colors group"
+                            >
+                              <CheckCircle2 className="size-3.5 text-status-ok shrink-0" />
+                              <span className="font-medium w-48 truncate">{e.companyName ?? "—"}</span>
+                              <span className="text-fg-subtle w-24 truncate">{e.specialty ?? "—"}</span>
+                              <span className="text-fg-subtle w-20 truncate">{e.location ?? "—"}</span>
+                              <span className="text-fg-subtle truncate flex-1">{e.subject?.slice(0, 60) ?? "—"}</span>
+                              {e.leadStatus && <StatusBadge status={e.leadStatus} />}
+                              <span className="ml-2 shrink-0">
+                                {emailOpen
+                                  ? <ChevronUp className="size-3.5 text-fg-subtle" />
+                                  : <ChevronDown className="size-3.5 text-fg-subtle opacity-0 group-hover:opacity-100 transition-opacity" />
+                                }
+                              </span>
+                            </button>
+                            {emailOpen && (
+                              <div className="px-6 pb-4 border-t border-border-subtle bg-bg-base/50">
+                                <div className="flex items-center gap-3 mt-3 mb-2 text-xs text-fg-subtle">
+                                  <span>Til: <span className="text-fg">{e.toEmail ?? "—"}</span></span>
+                                  {e.contactName && (
+                                    <>
+                                      <span>·</span>
+                                      <span>{e.contactName}</span>
+                                    </>
+                                  )}
+                                  <span>·</span>
+                                  <span>{formatRelative(new Date(e.sentAt ?? e.createdAt))}</span>
+                                </div>
+                                <div className="text-xs font-medium text-fg mb-2">
+                                  Emne: {e.subject ?? "(ingen emne)"}
+                                </div>
+                                {e.body ? (
+                                  <div className="bg-bg-elevated rounded-lg p-4 text-xs text-fg leading-relaxed whitespace-pre-wrap border border-border-subtle max-h-72 overflow-y-auto">
+                                    {e.body}
+                                  </div>
+                                ) : (
+                                  <p className="text-xs text-fg-subtle italic">Ingen e-posttekst lagret.</p>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
