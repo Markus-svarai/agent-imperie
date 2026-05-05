@@ -65,6 +65,9 @@ import {
 // Notifications
 import { dailyDigest, dealClosedVarsling, onFunctionFailed } from "@/lib/inngest/functions/notifications";
 
+// Generic command handler (avoids Vercel timeout for long agents)
+import { agentManualCommand } from "@/lib/inngest/functions/command-handler";
+
 // Hermes
 import { hermesLaererAvScribe } from "@/lib/inngest/functions/hermes";
 
@@ -112,6 +115,9 @@ export const { GET, POST, PUT } = serve({
 
     // ── Notifications ─────────────────────────────────────────────────────
     dailyDigest, dealClosedVarsling, onFunctionFailed,
+
+    // ── Generic command handler ───────────────────────────────────────────────
+    agentManualCommand,
 
     // ── Cross-agent learning ──────────────────────────────────────────────
     hermesLaererAvScribe,

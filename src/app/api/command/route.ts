@@ -4,14 +4,13 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { makeCtx } from "@/lib/inngest/utils";
 import { checkAuth } from "@/lib/api/auth";
 import { REGISTRY } from "@/lib/agents/registry";
 import { db, schema } from "@/lib/db";
 import { eq } from "drizzle-orm";
 import { DEFAULT_ORG_ID } from "@/lib/db/constants";
-
-export const maxDuration = 60;
+import { inngest } from "@/lib/inngest/client";
+import { randomUUID } from "crypto";
 
 /** GET /api/command — returns all agents registered in REGISTRY, enriched with DB metadata */
 export async function GET(req: NextRequest) {
@@ -64,18 +63,22 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { ctx, runId, persistRun, persistError } = makeCtx(agentId);
+    // Fyr Inngest-event i stedet for å kjøre synkront.
+    // Unngår Vercel 60s timeout for lange agenter som Hermes og Nova.
+    const runId = randomUUID();
+    console.log(`[command] Sender ${agentName} til Inngest — runId=${runId}`);
 
-    console.log(`[command] Kjører ${agentName} med melding: "${message.slice(0, 80)}"`);
+    await inngest.send({
+      name: "agent/command",
+      data: { agentId, message, runId },
+    });
 
-    try {
-      const output = await agent.run({ message }, ctx);
-      await persistRun(output, "manual");
-      return NextResponse.json({ ok: true, runId, output });
-    } catch (err) {
-      await persistError(err, "manual");
-      throw err;
-    }
+    return NextResponse.json({
+      ok: true,
+      queued: true,
+      runId,
+      message: `${agentName} er satt i gang. Se kjøringer-siden for resultat.`,
+    });
   } catch (err) {
     console.error("[command] Feil:", err);
     return NextResponse.json({ error: String(err) }, { status: 500 });

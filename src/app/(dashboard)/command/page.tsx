@@ -80,14 +80,25 @@ export default function CommandPage() {
         body: JSON.stringify({ agentName: selectedAgent.id, message: userMsg.content }),
       });
 
-      const data = await res.json() as { ok: boolean; output?: { summary: string }; runId?: string; error?: string };
+      const data = await res.json() as {
+        ok: boolean;
+        queued?: boolean;
+        runId?: string;
+        message?: string;
+        output?: { summary: string };
+        error?: string;
+      };
+
+      const content = data.queued
+        ? `⚡ Kjøres i bakgrunnen — sjekk kjøringer-siden for resultat.\n\n_run/${data.runId?.slice(-8)}_`
+        : data.ok && data.output?.summary
+          ? data.output.summary
+          : (data.error ?? "Noe gikk galt.");
 
       const agentMsg: Message = {
         role: "agent",
         agentName: selectedAgent.name,
-        content: data.ok && data.output?.summary
-          ? data.output.summary
-          : (data.error ?? "Noe gikk galt."),
+        content,
         runId: data.runId,
         ts: new Date(),
       };
