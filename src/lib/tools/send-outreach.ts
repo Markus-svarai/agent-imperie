@@ -103,9 +103,31 @@ export async function sendOutreachEmail(
 
     // Log in DB
     const now = new Date();
+
+    // Fallback: slå opp leadId via e-postadresse hvis det ikke ble sendt med.
+    // Forhindrer at leads aldri oppdateres og kontaktes gjentatte ganger.
+    let resolvedLeadId = input.leadId ?? null;
+    if (!resolvedLeadId) {
+      try {
+        const lead = await db.query.leads.findFirst({
+          where: and(
+            eq(schema.leads.orgId, DEFAULT_ORG_ID),
+            eq(schema.leads.email, input.to.toLowerCase().trim())
+          ),
+          columns: { id: true },
+        });
+        resolvedLeadId = lead?.id ?? null;
+        if (resolvedLeadId) {
+          console.log(`[sendOutreach] Fant leadId via e-post: ${resolvedLeadId}`);
+        }
+      } catch (e) {
+        console.warn("[sendOutreach] Lead-lookup feilet:", e);
+      }
+    }
+
     await db.insert(schema.outreachEmails).values({
       orgId: DEFAULT_ORG_ID,
-      leadId: input.leadId ?? null,
+      leadId: resolvedLeadId,
       direction: "outbound",
       fromEmail: FROM_EMAIL,
       toEmail: input.to,
@@ -115,11 +137,8 @@ export async function sendOutreachEmail(
       sentAt: now,
     });
 
-    // Update lastContactedAt on the lead so getPendingLeads() can track follow-up timing.
-    // Also bump status to "contacted" unless already further along ("replied", "demo_booked", etc.)
-    // Titan handles status updates via update_lead_status when replying — we only set "contacted"
-    // when current status is "new" to avoid overwriting "replied" → "contacted".
-    if (input.leadId) {
+    // Oppdater lastContactedAt alltid — selv uten leadId i input.
+    if (resolvedLeadId) {
       await db
         .update(schema.leads)
         .set({
@@ -129,7 +148,7 @@ export async function sendOutreachEmail(
         })
         .where(
           and(
-            eq(schema.leads.id, input.leadId),
+            eq(schema.leads.id, resolvedLeadId),
             eq(schema.leads.orgId, DEFAULT_ORG_ID)
           )
         );

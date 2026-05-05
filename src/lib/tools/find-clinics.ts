@@ -86,12 +86,24 @@ export async function storeLead(lead: ClinicLead): Promise<string> {
   }
 }
 
-/** Get all new leads ready for Hermes to contact */
+/** Get all new leads ready for Hermes to contact.
+ * Ekskluderer leads kontaktet de siste 5 dagene som sikkerhetsventil
+ * hvis status ikke ble oppdatert korrekt etter forrige sending. */
 export async function getNewLeads(limit = 10) {
+  const fiveDaysAgo = new Date();
+  fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
+
   return db.query.leads.findMany({
     where: and(
       eq(schema.leads.orgId, DEFAULT_ORG_ID),
-      eq(schema.leads.status, "new")
+      eq(schema.leads.status, "new"),
+      // Sikkerhetsventil: ikke kontakt noen som har fått mail siste 5 dager
+      // selv om status av en eller annen grunn ikke er oppdatert
+      (leads, { or, isNull, lte }) =>
+        or(
+          isNull(leads.lastContactedAt),
+          lte(leads.lastContactedAt, fiveDaysAgo)
+        )
     ),
     orderBy: (leads, { desc }) => [desc(leads.fitScore)],
     limit,
