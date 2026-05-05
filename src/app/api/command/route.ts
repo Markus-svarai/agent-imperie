@@ -10,7 +10,10 @@ import { db, schema } from "@/lib/db";
 import { eq } from "drizzle-orm";
 import { DEFAULT_ORG_ID } from "@/lib/db/constants";
 import { inngest } from "@/lib/inngest/client";
+import { makeCtx } from "@/lib/inngest/utils";
 import { randomUUID } from "crypto";
+
+export const maxDuration = 30;
 
 /** GET /api/command — returns all agents registered in REGISTRY, enriched with DB metadata */
 export async function GET(req: NextRequest) {
@@ -63,22 +66,42 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Fyr Inngest-event i stedet for å kjøre synkront.
-    // Unngår Vercel 60s timeout for lange agenter som Hermes og Nova.
-    const runId = randomUUID();
-    console.log(`[command] Sender ${agentName} til Inngest — runId=${runId}`);
+    // Prøv å kjøre synkront innen 20s — fungerer for enkle spørsmål.
+    // Fall tilbake til Inngest async for lange agenter som Hermes og Nova.
+    const SYNC_TIMEOUT_MS = 20_000;
 
-    await inngest.send({
-      name: "agent/command",
-      data: { agentId, message, runId },
-    });
+    const { ctx, runId, persistRun, persistError } = makeCtx(agentId);
 
-    return NextResponse.json({
-      ok: true,
-      queued: true,
-      runId,
-      message: `${agentName} er satt i gang. Se kjøringer-siden for resultat.`,
-    });
+    const syncRace = Promise.race([
+      agent.run({ message }, ctx),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("sync-timeout")), SYNC_TIMEOUT_MS)
+      ),
+    ]);
+
+    try {
+      const output = await syncRace;
+      await persistRun(output, "manual");
+      console.log(`[command] Synkront svar fra ${agentName} — runId=${runId}`);
+      return NextResponse.json({ ok: true, runId, output });
+    } catch (err) {
+      if (err instanceof Error && err.message === "sync-timeout") {
+        // Agenten er treg — send til Inngest så Vercel ikke timer ut
+        const asyncRunId = randomUUID();
+        console.log(`[command] Timeout — sender ${agentName} til Inngest — runId=${asyncRunId}`);
+        await inngest.send({
+          name: "agent/command",
+          data: { agentId, message, runId: asyncRunId },
+        });
+        return NextResponse.json({
+          ok: true,
+          queued: true,
+          runId: asyncRunId,
+          message: `${agentName} kjøres i bakgrunnen — sjekk kjøringer-siden for resultat.`,
+        });
+      }
+      throw err;
+    }
   } catch (err) {
     console.error("[command] Feil:", err);
     return NextResponse.json({ error: String(err) }, { status: 500 });
