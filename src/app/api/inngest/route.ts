@@ -1,6 +1,9 @@
 import { serve } from "inngest/next";
 import { inngest } from "@/lib/inngest/client";
 
+// Vercel Pro: 300s max. Hobby: 60s (functions may still time out on slow Anthropic days).
+export const maxDuration = 300;
+
 // Diagnostic: confirm signing key is present at startup (never logs the value)
 console.log("[inngest/route] has INNGEST_SIGNING_KEY:", !!process.env.INNGEST_SIGNING_KEY);
 console.log("[inngest/route] has INNGEST_EVENT_KEY:", !!process.env.INNGEST_EVENT_KEY);

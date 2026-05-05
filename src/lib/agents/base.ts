@@ -53,7 +53,7 @@ export abstract class BaseAgent {
       try {
         return await anthropic.messages.create(
           params,
-          { signal: AbortSignal.timeout(30_000) }
+          { signal: AbortSignal.timeout(55_000) }
         ) as Anthropic.Message;
       } catch (err) {
         const isRateLimit =
