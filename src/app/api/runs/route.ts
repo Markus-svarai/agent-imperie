@@ -1,27 +1,26 @@
-import { NextRequest, NextResponse } from "next/server";
-import { db, schema } from "@/lib/db";
-import { eq, desc, and } from "drizzle-orm";
-import { DEFAULT_ORG_ID } from "@/lib/db/constants";
-import { checkAuth } from "@/lib/api/auth";
+/**
+ * GET /api/runs?limit=50  → siste N agent-kjøringer
+ */
 
-export const dynamic = "force-dynamic";
+import { NextRequest, NextResponse } from "next/server";
+import { checkAuth } from "@/lib/api/auth";
+import { db, schema } from "@/lib/db";
+import { eq, desc } from "drizzle-orm";
+import { DEFAULT_ORG_ID } from "@/lib/db/constants";
+
+export const revalidate = 0;
 
 export async function GET(req: NextRequest) {
   const authError = checkAuth(req);
   if (authError) return authError;
 
+  const limit = Math.min(
+    Number(req.nextUrl.searchParams.get("limit") ?? "50"),
+    200
+  );
+
   try {
-    const { searchParams } = new URL(req.url);
-    const limit = Math.min(Number(searchParams.get("limit") ?? 50), 100);
-    const department = searchParams.get("dept") ?? null;
-
-    type Department = typeof schema.agents.$inferSelect["department"];
-    const conditions = [eq(schema.agentRuns.orgId, DEFAULT_ORG_ID)];
-    if (department) {
-      conditions.push(eq(schema.agents.department, department as Department));
-    }
-
-    const runs = await db
+    const rows = await db
       .select({
         id: schema.agentRuns.id,
         status: schema.agentRuns.status,
@@ -34,34 +33,34 @@ export async function GET(req: NextRequest) {
         costMicroUsd: schema.agentRuns.costMicroUsd,
         output: schema.agentRuns.output,
         agentName: schema.agents.name,
-        agentDepartment: schema.agents.department,
-        agentModel: schema.agents.model,
+        department: schema.agents.department,
+        model: schema.agents.model,
       })
       .from(schema.agentRuns)
-      .leftJoin(schema.agents, eq(schema.agentRuns.agentId, schema.agents.id))
-      .where(and(...conditions))
+      .innerJoin(schema.agents, eq(schema.agentRuns.agentId, schema.agents.id))
+      .where(eq(schema.agentRuns.orgId, DEFAULT_ORG_ID))
       .orderBy(desc(schema.agentRuns.createdAt))
       .limit(limit);
 
-    return NextResponse.json({
-      runs: runs.map((r) => ({
-        id: r.id,
-        agentName: r.agentName ?? "Ukjent",
-        department: r.agentDepartment ?? "command",
-        model: r.agentModel ?? "claude-sonnet-4-6",
-        status: r.status,
-        trigger: r.trigger,
-        startedAt: r.startedAt?.toISOString() ?? null,
-        endedAt: r.endedAt?.toISOString() ?? null,
-        durationMs: r.durationMs,
-        inputTokens: r.inputTokens ?? 0,
-        outputTokens: r.outputTokens ?? 0,
-        costMicroUsd: r.costMicroUsd ?? 0,
-        summary: (r.output as Record<string, unknown>)?.summary as string ?? "",
-      })),
-    });
+    const runs = rows.map((r) => ({
+      id: r.id,
+      agentName: r.agentName,
+      department: r.department,
+      model: r.model,
+      status: r.status,
+      trigger: r.trigger,
+      startedAt: r.startedAt?.toISOString() ?? null,
+      endedAt: r.endedAt?.toISOString() ?? null,
+      durationMs: r.durationMs,
+      inputTokens: r.inputTokens ?? 0,
+      outputTokens: r.outputTokens ?? 0,
+      costMicroUsd: r.costMicroUsd ?? 0,
+      summary: (r.output as { summary?: string } | null)?.summary ?? "",
+    }));
+
+    return NextResponse.json({ runs });
   } catch (err) {
-    console.error("[runs] Error:", err);
+    console.error("[api/runs] Feil:", err);
     return NextResponse.json({ error: String(err) }, { status: 500 });
   }
 }
