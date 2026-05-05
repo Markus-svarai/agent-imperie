@@ -39,9 +39,8 @@ export const guardianHealthCheck = inngest.createFunction(
   {
     id: "guardian-health-check",
     name: "Guardian · Helsesjekk",
-    // Maks 1 alert per 2 timer — forhindrer spam hvis appen er nede over tid
+    // Maks 1 kjøring per 2 timer — forhindrer spam hvis appen er nede over tid
     rateLimit: {
-      event: "guardian/alert",
       limit: 1,
       period: "2h",
     },
