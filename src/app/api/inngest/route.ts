@@ -8,118 +8,67 @@ export const maxDuration = 300;
 console.log("[inngest/route] has INNGEST_SIGNING_KEY:", !!process.env.INNGEST_SIGNING_KEY);
 console.log("[inngest/route] has INNGEST_EVENT_KEY:", !!process.env.INNGEST_EVENT_KEY);
 
-// Original 7 agents
-import { guardianHealthCheck } from "@/lib/inngest/functions/guardian";
-import { ledgerDailyBrief } from "@/lib/inngest/functions/ledger";
-import { jarvisGuardianAlert, jarvisMorgenplan } from "@/lib/inngest/functions/jarvis";
-import { novaProspektering } from "@/lib/inngest/functions/nova";
-import { hermesSkrivMeldinger, hermesManuelOpdrag } from "@/lib/inngest/functions/hermes";
-import { devLogganalyse } from "@/lib/inngest/functions/dev";
-import { scribeUkesanalyse, scribeManueltOppdrag } from "@/lib/inngest/functions/scribe";
+// ── Aktive agenter (brief + klinikk-pipeline) ─────────────────────────────
 
-// Command
+// System
+import { guardianHealthCheck } from "@/lib/inngest/functions/guardian";
+import { jarvisGuardianAlert, jarvisMorgenplan } from "@/lib/inngest/functions/jarvis";
+
+// Command & koordinering
 import {
   athenaUkestrategi, athenaReagerPaaIntel,
   oracleDagligIntel, nexusDagligKoordinering,
 } from "@/lib/inngest/functions/command";
 
-// Engineering
+// Sales – finn, analyser og kontakt klinikker
+import { novaProspektering } from "@/lib/inngest/functions/nova";
 import {
-  forgeImplementerer, forgeManuelOppdrag,
-  cipherReviewer, sentinelQA,
-  patchInfraCheck, patchReagerSikkerhet,
-  forgeRevisjon,
-} from "@/lib/inngest/functions/engineering";
-
-// Sales
+  hermesSkrivMeldinger, hermesManuelOpdrag, hermesLaererAvScribe,
+} from "@/lib/inngest/functions/hermes";
 import {
   titanDagligOppfolging, titanOppfolgingEtterHermes, titanReagerPaaSvar,
   pulsePipelineHygiene, rexUkesanalyse,
   noReplyTimeout, titanVurdererNoReply,
 } from "@/lib/inngest/functions/sales";
 
-// Marketing
-import {
-  beaconSeoAnalyse, museSkriverInnhold, museReagerPaaBeacon,
-  prismReviewer, prismReviewerOutreach, echoDistribuerer,
-  museRevisjon,
-} from "@/lib/inngest/functions/marketing";
-
-// Analytics
-import { lensDagligKpis, sageUkesrapport, quillDagligSyntese } from "@/lib/inngest/functions/analytics";
-
-// Operations
-import {
-  vaultSikkerhetssjekk, fluxLoggEndring, fluxPlanleggEndring, kronosOptimaliser,
-} from "@/lib/inngest/functions/operations";
-
-// Finance
-import { mintKostnadsrapport, voltVekstanalyse } from "@/lib/inngest/functions/finance";
-
-// Research
-import {
-  darwinProductBrief, darwinAnalyserFeedback,
-  atlasTekniskResearch, siloByggerKunnskapsbase, siloLoggBeslutning,
-} from "@/lib/inngest/functions/research";
-
-// Notifications
+// Varsler
 import { dailyDigest, dealClosedVarsling, onFunctionFailed } from "@/lib/inngest/functions/notifications";
 
-// Generic command handler (avoids Vercel timeout for long agents)
+// Generisk kommandohåndterer
 import { agentManualCommand } from "@/lib/inngest/functions/command-handler";
 
-// Hermes
-import { hermesLaererAvScribe } from "@/lib/inngest/functions/hermes";
+// ── Deaktivert (ikke relevant ennå) ──────────────────────────────────────
+// ledgerDailyBrief       – finansrapporter
+// quillDagligSyntese     – 72k-token executive summaries
+// lensDagligKpis         – KPI-rapporter
+// sageUkesrapport        – ukesrapporter
+// mintKostnadsrapport, voltVekstanalyse – finans
+// beacon, muse, prism, echo – markedsføring
+// forge, cipher, sentinel, patch – engineering
+// devLogganalyse, scribe – dev/skriving
+// vault, flux, kronos    – operasjoner
+// darwin, atlas, silo    – research/kunnskapsbase
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
   functions: [
-    // ── Original 7 ──────────────────────────────────────────────────────
-    guardianHealthCheck, ledgerDailyBrief,
+    // ── System ──────────────────────────────────────────────────────────
+    guardianHealthCheck,
     jarvisGuardianAlert, jarvisMorgenplan,
-    novaProspektering, hermesSkrivMeldinger, hermesManuelOpdrag,
-    devLogganalyse, scribeUkesanalyse, scribeManueltOppdrag,
 
-    // ── Command ─────────────────────────────────────────────────────────
+    // ── Command & koordinering ───────────────────────────────────────────
     athenaUkestrategi, athenaReagerPaaIntel,
     oracleDagligIntel, nexusDagligKoordinering,
 
-    // ── Engineering ─────────────────────────────────────────────────────
-    forgeImplementerer, forgeManuelOppdrag,
-    cipherReviewer, sentinelQA,
-    patchInfraCheck, patchReagerSikkerhet,
-    forgeRevisjon,
-
-    // ── Sales ────────────────────────────────────────────────────────────
+    // ── Sales pipeline ───────────────────────────────────────────────────
+    novaProspektering,
+    hermesSkrivMeldinger, hermesManuelOpdrag, hermesLaererAvScribe,
     titanDagligOppfolging, titanOppfolgingEtterHermes, titanReagerPaaSvar,
     pulsePipelineHygiene, rexUkesanalyse,
     noReplyTimeout, titanVurdererNoReply,
 
-    // ── Marketing ────────────────────────────────────────────────────────
-    beaconSeoAnalyse, museSkriverInnhold, museReagerPaaBeacon,
-    prismReviewer, prismReviewerOutreach, echoDistribuerer,
-    museRevisjon,
-
-    // ── Analytics ────────────────────────────────────────────────────────
-    lensDagligKpis, sageUkesrapport, quillDagligSyntese,
-
-    // ── Operations ───────────────────────────────────────────────────────
-    vaultSikkerhetssjekk, fluxLoggEndring, fluxPlanleggEndring, kronosOptimaliser,
-
-    // ── Finance ──────────────────────────────────────────────────────────
-    mintKostnadsrapport, voltVekstanalyse,
-
-    // ── Research ─────────────────────────────────────────────────────────
-    darwinProductBrief, darwinAnalyserFeedback,
-    atlasTekniskResearch, siloByggerKunnskapsbase, siloLoggBeslutning,
-
-    // ── Notifications ─────────────────────────────────────────────────────
+    // ── Varsler & generelt ───────────────────────────────────────────────
     dailyDigest, dealClosedVarsling, onFunctionFailed,
-
-    // ── Generic command handler ───────────────────────────────────────────────
     agentManualCommand,
-
-    // ── Cross-agent learning ──────────────────────────────────────────────
-    hermesLaererAvScribe,
   ],
 });
