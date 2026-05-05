@@ -7,7 +7,7 @@
 
 import { search } from "./search";
 import { db, schema } from "@/lib/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, or, isNull, lte } from "drizzle-orm";
 import { DEFAULT_ORG_ID } from "@/lib/db/constants";
 
 export interface ClinicLead {
@@ -99,11 +99,10 @@ export async function getNewLeads(limit = 10) {
       eq(schema.leads.status, "new"),
       // Sikkerhetsventil: ikke kontakt noen som har fått mail siste 5 dager
       // selv om status av en eller annen grunn ikke er oppdatert
-      (leads, { or, isNull, lte }) =>
-        or(
-          isNull(leads.lastContactedAt),
-          lte(leads.lastContactedAt, fiveDaysAgo)
-        )
+      or(
+        isNull(schema.leads.lastContactedAt),
+        lte(schema.leads.lastContactedAt, fiveDaysAgo)
+      )
     ),
     orderBy: (leads, { desc }) => [desc(leads.fitScore)],
     limit,
