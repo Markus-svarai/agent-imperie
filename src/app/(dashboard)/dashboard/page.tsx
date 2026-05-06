@@ -189,7 +189,7 @@ export default function DashboardPage() {
   })();
 
   return (
-    <div className="px-8 py-7 max-w-[1400px] mx-auto space-y-8">
+    <div className="px-4 md:px-8 py-5 md:py-7 max-w-[1400px] mx-auto space-y-6 md:space-y-8">
 
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <div className="flex items-end justify-between">
@@ -277,7 +277,7 @@ export default function DashboardPage() {
               Se alle leads <ArrowRight className="size-3" />
             </Link>
           </div>
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {(data?.ringeliste ?? []).map((lead, i) => (
               <RingLeadCard key={lead.id} lead={lead} rank={i + 1} />
             ))}
@@ -286,7 +286,7 @@ export default function DashboardPage() {
       )}
 
       {/* ── KPI grid ───────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <KpiCard
           label="Leads i pipeline"
           value={p.total > 0 ? String(p.total) : "—"}
@@ -326,10 +326,10 @@ export default function DashboardPage() {
       </div>
 
       {/* ── Main grid ──────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
 
         {/* Left: Departments + last inbound ───────────────────────────── */}
-        <div className="col-span-2 space-y-6">
+        <div className="col-span-1 md:col-span-2 space-y-6">
 
           {/* Last inbound email */}
           {data?.lastInbound ? (
@@ -398,7 +398,7 @@ export default function DashboardPage() {
                 Se alle agenter <ArrowRight className="size-3" />
               </Link>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {DEPARTMENTS.map((dept) => {
                 const Icon = DEPT_ICONS[dept.id] ?? Activity;
                 // Pick a representative agent for status display
