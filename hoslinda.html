@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="nb">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hos Linda – Personlig hårpleie i Moss</title>
+  <meta name="description" content="Hos Linda tilbyr personlig hårpleie i Moss. Klipp, farge, styling og pleie. Ring eller send SMS på 975 08 978 for å bestille time.">
+  <link rel="icon" href="https://www-static.hoslinda.no/wp-content/uploads/2022/08/favicon-02.jpg">
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="Hos Linda – Personlig hårpleie i Moss">
+  <meta property="og:description" content="Klipp, farge, styling og pleie. Ring eller send SMS på 975 08 978 for å bestille time.">
+  <meta property="og:image" content="https://www-static.hoslinda.no/wp-content/uploads/2022/08/God_tid_med_kunden.jpg">
+  <meta property="og:url" content="https://hoslinda.no">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="nb_NO">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --gold: #b8960c;
+      --gold-light: #d4af37;
+      --black: #111;
+      --white: #fff;
+      --off-white: #faf9f7;
+      --gray: #888;
+      --light-gray: #f0eeeb;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      color: var(--black);
+      background: var(--white);
+      font-size: 15px;
+      line-height: 1.7;
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0;
+      z-index: 100;
+      background: rgba(255,255,255,0.96);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid rgba(0,0,0,0.06);
+      padding: 0 40px;
+      display: flex; align-items: center; justify-content: space-between;
+      height: 70px;
+    }
+    .nav-logo img { height: 36px; }
+    .nav-links { display: flex; gap: 32px; list-style: none; }
+    .nav-links a {
+      text-decoration: none; color: var(--black);
+      font-size: 13px; letter-spacing: 0.05em; text-transform: uppercase;
+      opacity: 0.7; transition: opacity 0.2s;
+    }
+    .nav-links a:hover { opacity: 1; }
+    .nav-cta {
+      background: var(--black); color: var(--white);
+      padding: 10px 22px; border-radius: 2px;
+      text-decoration: none; font-size: 12px;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      transition: background 0.2s;
+    }
+    .nav-cta:hover { background: #333; }
+    .hamburger { display: none; background: none; border: none; cursor: pointer; padding: 4px; }
+    .hamburger span { display: block; width: 22px; height: 1.5px; background: var(--black); margin: 5px 0; transition: 0.3s; }
+
+    /* ── HERO ── */
+    .hero {
+      margin-top: 70px;
+      position: relative; height: calc(100vh - 70px); min-height: 500px;
+      overflow: hidden;
+      background: #1a1a1a;
+    }
+    .hero-slides { width: 100%; height: 100%; position: relative; }
+    .hero-slide {
+      position: absolute; inset: 0;
+      background-size: cover; background-position: center;
+      opacity: 0; transition: opacity 1.2s ease;
+    }
+    .hero-slide.active { opacity: 1; }
+    .hero-slide::after {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(to right, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.1) 60%, transparent 100%);
+    }
+    .hero-content {
+      position: absolute; inset: 0; z-index: 2;
+      display: flex; flex-direction: column; justify-content: center;
+      padding: 0 80px;
+    }
+    .hero-eyebrow {
+      font-family: 'Inter', sans-serif;
+      font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase;
+      color: var(--gold-light); margin-bottom: 16px;
+    }
+    .hero-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(48px, 6vw, 80px); font-weight: 300;
+      color: var(--white); line-height: 1.1; margin-bottom: 24px;
+    }
+    .hero-sub {
+      color: rgba(255,255,255,0.8); font-size: 15px;
+      max-width: 340px; margin-bottom: 36px;
+    }
+    .hero-btn {
+      display: inline-block;
+      background: var(--gold); color: var(--white);
+      padding: 14px 32px; text-decoration: none;
+      font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase;
+      border-radius: 2px; transition: background 0.2s;
+      width: fit-content;
+    }
+    .hero-btn:hover { background: var(--gold-light); }
+    .hero-dots {
+      position: absolute; bottom: 28px; left: 50%; transform: translateX(-50%);
+      z-index: 3; display: flex; gap: 8px;
+    }
+    .hero-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: rgba(255,255,255,0.4); cursor: pointer;
+      transition: background 0.3s, transform 0.3s;
+    }
+    .hero-dot.active { background: var(--white); transform: scale(1.3); }
+
+    /* ── SECTIONS ── */
+    section { padding: 96px 40px; }
+    .section-inner { max-width: 1100px; margin: 0 auto; }
+    .section-label {
+      font-size: 10px; letter-spacing: 0.25em; text-transform: uppercase;
+      color: var(--gold); margin-bottom: 16px;
+    }
+    .section-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(32px, 4vw, 52px); font-weight: 300;
+      line-height: 1.15; margin-bottom: 32px;
+    }
+    .divider {
+      width: 60px; height: 1px; background: var(--gold);
+      margin: 24px 0;
+    }
+
+    /* ── OM MEG ── */
+    #ommeg { background: var(--white); }
+    .about-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 80px;
+      align-items: center;
+    }
+    .about-img {
+      width: 100%; aspect-ratio: 4/3;
+      object-fit: cover; border-radius: 2px;
+    }
+    .about-text { color: #444; font-size: 15px; line-height: 1.85; }
+
+    /* ── PRISER ── */
+    #priser { background: var(--white); }
+    .price-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 32px; margin-top: 48px;
+    }
+    .price-card {
+      background: var(--off-white); padding: 32px;
+      border-top: 2px solid var(--gold);
+    }
+    .price-card h3 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 22px; font-weight: 400; margin-bottom: 20px;
+      letter-spacing: 0.03em;
+    }
+    .price-row {
+      display: flex; justify-content: space-between; align-items: baseline;
+      padding: 8px 0; border-bottom: 1px solid #e8e5e1;
+      font-size: 14px; color: #444;
+    }
+    .price-row:last-child { border-bottom: none; }
+    .price-row .price { font-weight: 500; color: var(--black); white-space: nowrap; }
+    .price-cta {
+      text-align: center; margin-top: 56px;
+    }
+    .price-cta a {
+      display: inline-block;
+      background: var(--black); color: var(--white);
+      padding: 16px 40px; text-decoration: none;
+      font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase;
+      border-radius: 2px; transition: background 0.2s;
+    }
+    .price-cta a:hover { background: #333; }
+
+    /* ── PRODUKTER ── */
+    #produkter { background: var(--off-white); }
+
+    /* ── KONTAKT ── */
+    #kontakt { background: var(--black); color: var(--white); }
+    #kontakt .section-title { color: var(--white); }
+    #kontakt .section-label { color: var(--gold-light); }
+    .contact-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 80px;
+      align-items: start;
+    }
+    .contact-info { display: flex; flex-direction: column; gap: 24px; }
+    .contact-item { }
+    .contact-item .label {
+      font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase;
+      color: var(--gold-light); margin-bottom: 4px;
+    }
+    .contact-item .value {
+      font-size: 18px; color: var(--white);
+      font-family: 'Cormorant Garamond', serif; font-weight: 300;
+    }
+    .contact-item a { color: var(--white); text-decoration: none; }
+    .cta-phone {
+      display: inline-block; margin-top: 8px;
+      background: var(--gold); color: var(--white);
+      padding: 16px 36px; text-decoration: none;
+      font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase;
+      border-radius: 2px; transition: background 0.2s;
+    }
+    .cta-phone:hover { background: var(--gold-light); }
+    .map-embed {
+      width: 100%; height: 320px; border: none;
+      border-radius: 2px; filter: grayscale(20%);
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      background: #0a0a0a; color: rgba(255,255,255,0.4);
+      text-align: center; padding: 28px 40px;
+      font-size: 12px; letter-spacing: 0.05em;
+    }
+    footer a { color: rgba(255,255,255,0.5); text-decoration: none; }
+
+    /* ── MOBILE ── */
+    @media (max-width: 768px) {
+      /* NAV */
+      nav { padding: 0 16px; }
+      .nav-links, .nav-cta { display: none; }
+      .hamburger { display: block; }
+      nav.menu-open .nav-links {
+        display: flex; flex-direction: column;
+        position: fixed; top: 70px; left: 0; right: 0;
+        background: var(--white); padding: 0 16px;
+        border-bottom: 2px solid var(--light-gray);
+        gap: 0; z-index: 99;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+      }
+      nav.menu-open .nav-links li {
+        border-bottom: 1px solid var(--light-gray);
+      }
+      nav.menu-open .nav-links a {
+        display: block; padding: 16px 4px;
+        font-size: 13px; opacity: 0.85;
+      }
+
+      /* HERO – fikser iOS Safari 100vh-bug */
+      .hero {
+        height: 100svh; /* moderne iOS/Android */
+        height: 100vh;  /* fallback */
+        min-height: 560px;
+      }
+      /* Gradient fra bunn på mobil (teksten er sentrert) */
+      .hero-slide::after {
+        background: linear-gradient(
+          to top,
+          rgba(0,0,0,0.65) 0%,
+          rgba(0,0,0,0.3) 50%,
+          rgba(0,0,0,0.05) 100%
+        ) !important;
+      }
+      .hero-content {
+        padding: 0 24px 80px;
+        justify-content: flex-end; /* tekst nedtil på mobil */
+        text-align: left;
+      }
+      .hero-title { font-size: 44px; margin-bottom: 16px; }
+      .hero-sub { font-size: 14px; margin-bottom: 28px; max-width: 100%; }
+      .hero-btn {
+        display: block; width: 100%; text-align: center;
+        padding: 16px 24px; font-size: 13px;
+      }
+      .hero-dots { bottom: 20px; }
+
+      /* SEKSJONER */
+      section { padding: 56px 20px; }
+      .section-title { margin-bottom: 20px; }
+
+      /* OM MEG */
+      .about-grid { grid-template-columns: 1fr; gap: 28px; }
+      .about-img { aspect-ratio: 3/2; }
+
+      /* PRISER */
+      .price-grid {
+        grid-template-columns: 1fr; /* alltid én kolonne */
+        gap: 16px;
+      }
+      .price-card { padding: 24px 20px; }
+      .price-row { font-size: 14px; }
+
+      /* KONTAKT */
+      .contact-grid { grid-template-columns: 1fr; gap: 36px; }
+      .map-embed { height: 220px; margin-top: 8px; }
+      .cta-phone {
+        display: block; text-align: center;
+        padding: 18px 24px; font-size: 14px;
+      }
+
+      /* FOOTER */
+      footer { padding: 24px 20px; line-height: 2; }
+    }
+
+    /* Ekstra smal (iPhone SE / eldre Android) */
+    @media (max-width: 380px) {
+      .hero-title { font-size: 36px; }
+      section { padding: 48px 16px; }
+      .price-card { padding: 20px 16px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav id="navbar">
+  <a href="#" class="nav-logo">
+    <img src="https://www-static.hoslinda.no/wp-content/uploads/2022/06/HOSLINDA_LOGO-sort_300px.png" alt="Hos Linda">
+  </a>
+  <ul class="nav-links" id="nav-links">
+    <li><a href="#ommeg">Om meg</a></li>
+    <li><a href="#priser">Priser</a></li>
+    <li><a href="#produkter">Produkter</a></li>
+    <li><a href="#kontakt">Kontakt</a></li>
+  </ul>
+  <a href="tel:97508978" class="nav-cta">Book time</a>
+  <button class="hamburger" id="hamburger" aria-label="Meny">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-slides">
+    <div class="hero-slide active" style="background-image:url('https://www-static.hoslinda.no/wp-content/uploads/2022/08/Slide1.png')"></div>
+    <div class="hero-slide" style="background-image:url('https://www-static.hoslinda.no/wp-content/uploads/2022/08/Slide2.png')"></div>
+    <div class="hero-slide" style="background-image:url('https://www-static.hoslinda.no/wp-content/uploads/2022/08/Noir_banner.png')"></div>
+    <div class="hero-slide" style="background-image:url('https://www-static.hoslinda.no/wp-content/uploads/2022/08/Miriam.png')"></div>
+  </div>
+  <div class="hero-content">
+    <div class="hero-eyebrow">Personlig hårpleie · Moss</div>
+    <h1 class="hero-title">Hos<br>Linda</h1>
+    <p class="hero-sub">Tid og oppmerksomhet til hvert enkelt hår — og til deg.</p>
+    <a href="tel:97508978" class="hero-btn">Ring for time</a>
+  </div>
+  <div class="hero-dots">
+    <div class="hero-dot active" onclick="goToSlide(0)"></div>
+    <div class="hero-dot" onclick="goToSlide(1)"></div>
+    <div class="hero-dot" onclick="goToSlide(2)"></div>
+    <div class="hero-dot" onclick="goToSlide(3)"></div>
+  </div>
+</div>
+
+<!-- OM MEG -->
+<section id="ommeg">
+  <div class="section-inner">
+    <div class="about-grid">
+      <img src="https://www-static.hoslinda.no/wp-content/uploads/2022/08/God_tid_med_kunden.jpg" alt="Linda med kunde" class="about-img">
+      <div>
+        <div class="section-label">Om meg</div>
+        <h2 class="section-title">God tid<br>med kunden</h2>
+        <div class="divider"></div>
+        <p class="about-text">Når jeg får en kunde i stolen er jeg opptatt av å analysere håret, kvaliteten — hva sitter jeg med? Hva er kundens behov og ønsker? Jeg oppdager at mange gruer seg til å komme fordi de ikke helt vet hva de skal gjøre. Da finner vi ut sammen hva som vil fungere.</p>
+        <br>
+        <p class="about-text">Mange bruker Pinterest og andre nettsider for å få idéer — da kan vi se sammen om det passer, alt ettersom hva du ønsker og hvilken hårtype jeg skal jobbe med. Jeg finner gode løsninger best i samarbeid med deg.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PRISER -->
+<section id="priser">
+  <div class="section-inner">
+    <div class="section-label">Priser</div>
+    <h2 class="section-title">Tjenester</h2>
+    <div class="divider"></div>
+    <div class="price-grid">
+
+      <div class="price-card">
+        <h3>Klipp</h3>
+        <div class="price-row"><span>15 minutter</span><span class="price">495,-</span></div>
+        <div class="price-row"><span>30 minutter</span><span class="price">850,-</span></div>
+        <div class="price-row"><span>45 minutter</span><span class="price">1 050,-</span></div>
+        <div class="price-row"><span>60 minutter</span><span class="price">1 250,-</span></div>
+        <div class="price-row"><span>75 minutter</span><span class="price">1 650,-</span></div>
+      </div>
+
+      <div class="price-card">
+        <h3>Farge</h3>
+        <div class="price-row"><span>Bunnfarge</span><span class="price">1 700,-</span></div>
+        <div class="price-row"><span>Ettervekst</span><span class="price">1 700,-</span></div>
+        <div class="price-row"><span>Striper</span><span class="price">fra 1 700,-</span></div>
+        <div class="price-row"><span>Helfarge</span><span class="price">fra 1 800,-</span></div>
+      </div>
+
+      <div class="price-card">
+        <h3>Styling</h3>
+        <div class="price-row"><span>Bruden</span><span class="price">2 200,-</span></div>
+        <div class="price-row"><span>Føn/legg/tang</span><span class="price">800,-</span></div>
+        <div class="price-row"><span>Frisering 30 min</span><span class="price">800,-</span></div>
+        <div class="price-row"><span>Frisering 60 min</span><span class="price">1 350,-</span></div>
+      </div>
+
+      <div class="price-card">
+        <h3>Pleie</h3>
+        <div class="price-row"><span>Kur 1 – lett pleie</span><span class="price">250,-</span></div>
+        <div class="price-row"><span>Kur 2 – peeling + pleie</span><span class="price">450,-</span></div>
+        <div class="price-row"><span>Kur 3 – lux cure</span><span class="price">685,-</span></div>
+      </div>
+
+      <div class="price-card">
+        <h3>Vipper og bryn</h3>
+        <div class="price-row"><span>Bryn farge</span><span class="price">340,-</span></div>
+        <div class="price-row"><span>Farge vipper</span><span class="price">400,-</span></div>
+        <div class="price-row"><span>Farge vipper og bryn</span><span class="price">679,-</span></div>
+      </div>
+
+    </div>
+    <div class="price-cta">
+      <a href="tel:97508978">Ring for time → 975 08 978</a>
+    </div>
+  </div>
+</section>
+
+<!-- PRODUKTER -->
+<section id="produkter">
+  <div class="section-inner">
+    <div class="section-label">Produkter</div>
+    <h2 class="section-title">Hårprodukter</h2>
+    <div class="divider"></div>
+    <div class="about-grid" style="margin-top: 48px; align-items: center;">
+      <div>
+        <p style="font-family: 'Cormorant Garamond', serif; font-size: 19px; font-style: italic; line-height: 1.8; color: #444; max-width: 480px;">
+          Jeg tar inn produkter som jeg har tro på selv og som gjør det enkelt i folks hverdag. Hos meg får du produktene fra <strong style="font-style: normal;">Noir</strong> og <strong style="font-style: normal;">Miriamquevedo</strong>.
+        </p>
+        <p style="margin-top: 20px; font-size: 14px; color: var(--gray);">
+          Les mer om produktene på <a href="https://prettygood.no" target="_blank" rel="noopener" style="color: var(--gold); text-decoration: none;">prettygood.no</a>
+        </p>
+      </div>
+      <div style="display: flex; align-items: center; justify-content: center;">
+        <img src="https://www-static.hoslinda.no/wp-content/uploads/2022/08/Miriam.png" alt="Miriamquevedo hårprodukter" style="width: 100%; max-width: 420px; border-radius: 4px; object-fit: cover;">
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- KONTAKT -->
+<section id="kontakt">
+  <div class="section-inner">
+    <div class="contact-grid">
+      <div>
+        <div class="section-label">Kontakt</div>
+        <h2 class="section-title">Book time</h2>
+        <div class="divider" style="background:var(--gold-light)"></div>
+        <div class="contact-info">
+          <div class="contact-item">
+            <div class="label">Telefon / SMS</div>
+            <div class="value"><a href="tel:97508978">975 08 978</a></div>
+          </div>
+          <div class="contact-item">
+            <div class="label">Adresse</div>
+            <div class="value">Lilleengveien 8<br>1523 Moss</div>
+          </div>
+          <div class="contact-item">
+            <div class="label">Åpningstider</div>
+            <div class="value" style="font-size:15px;font-family:Inter,sans-serif;color:rgba(255,255,255,0.7)">Varierer — ta kontakt for ledig tid</div>
+          </div>
+        </div>
+        <a href="tel:97508978" class="cta-phone" style="margin-top:32px">Ring Linda →</a>
+      </div>
+      <iframe
+        class="map-embed"
+        src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2028.4123456!2d10.6578!3d59.4341!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x46401ee8a74d8e15%3A0x4d5b8a7f4e2c1234!2sLilleengveien%208%2C%201523%20Moss!5e0!3m2!1snb!2sno!4v1683000000000"
+        loading="lazy"
+        title="Kart til Hos Linda, Lilleengveien 8, Moss"
+        allowfullscreen>
+      </iframe>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <p>© 2026 Hos Linda · Personlig hårpleie · Lilleengveien 8, 1523 Moss · <a href="tel:97508978">975 08 978</a></p>
+</footer>
+
+<!-- SVARAI WIDGET -->
+<script src="https://svarai.no/widget.js?id=hoslinda&color=b8960c" async></script>
+
+<script>
+  // Hero slideshow
+  let current = 0;
+  const slides = document.querySelectorAll('.hero-slide');
+  const dots = document.querySelectorAll('.hero-dot');
+
+  function goToSlide(n) {
+    slides[current].classList.remove('active');
+    dots[current].classList.remove('active');
+    current = n;
+    slides[current].classList.add('active');
+    dots[current].classList.add('active');
+  }
+
+  setInterval(() => goToSlide((current + 1) % slides.length), 4500);
+
+  // Mobile menu — åpne/lukke
+  const hamburger = document.getElementById('hamburger');
+  const navbar = document.getElementById('navbar');
+  hamburger.addEventListener('click', () => {
+    navbar.classList.toggle('menu-open');
+  });
+
+  // Mobile menu — lukk når man trykker en lenke
+  document.querySelectorAll('#nav-links a').forEach(link => {
+    link.addEventListener('click', () => {
+      navbar.classList.remove('menu-open');
+    });
+  });
+</script>
+
+</body>
+</html>

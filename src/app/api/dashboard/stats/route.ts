@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db, schema } from "@/lib/db";
-import { and, eq, gte, sum, count, desc, sql } from "drizzle-orm";
+import { and, eq, gte, sum, count, desc, sql, or, inArray } from "drizzle-orm";
 import { DEFAULT_ORG_ID } from "@/lib/db/constants";
 
 export const dynamic = "force-dynamic";
@@ -333,6 +333,50 @@ export async function GET() {
     );
     const feed = activity.slice(0, 20);
 
+    // ── Ringeliste — topp 4 varme leads ─────────────────────────────────────
+    const PRIORITY_ORDER: Record<string, number> = {
+      replied: 0, interested: 1, contacted: 2, new: 3,
+    };
+    const ringRows = await db
+      .select({
+        id: schema.leads.id,
+        companyName: schema.leads.companyName,
+        contactName: schema.leads.contactName,
+        phone: schema.leads.phone,
+        status: schema.leads.status,
+        specialty: schema.leads.specialty,
+        location: schema.leads.location,
+        updatedAt: schema.leads.updatedAt,
+      })
+      .from(schema.leads)
+      .where(
+        and(
+          eq(schema.leads.orgId, DEFAULT_ORG_ID),
+          inArray(schema.leads.status, ["replied", "interested", "contacted", "new"])
+        )
+      )
+      .orderBy(desc(schema.leads.updatedAt))
+      .limit(20);
+
+    const ringeliste = ringRows
+      .sort((a, b) => {
+        const pa = PRIORITY_ORDER[a.status] ?? 9;
+        const pb = PRIORITY_ORDER[b.status] ?? 9;
+        if (pa !== pb) return pa - pb;
+        return new Date(b.updatedAt ?? 0).getTime() - new Date(a.updatedAt ?? 0).getTime();
+      })
+      .slice(0, 4)
+      .map((r) => ({
+        id: r.id,
+        companyName: r.companyName,
+        contactName: r.contactName ?? null,
+        phone: r.phone ?? null,
+        status: r.status,
+        specialty: r.specialty ?? null,
+        location: r.location ?? null,
+        updatedAt: r.updatedAt?.toISOString() ?? null,
+      }));
+
     // ── Suggested action ─────────────────────────────────────────────────────
     const repliedCount = pipeline["replied"] ?? 0;
     const interestedCount = pipeline["interested"] ?? 0;
@@ -401,6 +445,9 @@ export async function GET() {
 
       // Suggested action
       suggestedAction,
+
+      // Ringeliste
+      ringeliste,
     });
   } catch (err) {
     console.error("[dashboard/stats] Error:", err);

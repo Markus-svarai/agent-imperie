@@ -25,6 +25,8 @@ import {
   AlertCircle,
   XCircle,
   Calendar,
+  Phone,
+  MapPin,
 } from "lucide-react";
 import Link from "next/link";
 import { cn, formatRelative } from "@/lib/utils";
@@ -61,6 +63,17 @@ interface AgentStatus {
   summary: string;
 }
 
+interface RingLead {
+  id: string;
+  companyName: string;
+  contactName: string | null;
+  phone: string | null;
+  status: string;
+  specialty: string | null;
+  location: string | null;
+  updatedAt: string | null;
+}
+
 interface DashboardData {
   pipeline: Pipeline;
   runs24h: number;
@@ -82,6 +95,7 @@ interface DashboardData {
     reason: string;
     urgency: "high" | "medium" | "low";
   } | null;
+  ringeliste: RingLead[];
 }
 
 // ── Icons & helpers ──────────────────────────────────────────────────────────
@@ -241,6 +255,33 @@ export default function DashboardPage() {
           <Link href={"/command" as "/dashboard"} className="flex items-center gap-1 text-xs text-accent hover:underline">
             Gå til Kommando <ArrowRight className="size-3" />
           </Link>
+        </div>
+      )}
+
+      {/* ── Ringeliste ─────────────────────────────────────────────────── */}
+      {(data?.ringeliste ?? []).length > 0 && (
+        <div className="surface p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <div className="size-7 rounded-lg bg-accent/10 border border-accent/20 flex items-center justify-center">
+                <Phone className="size-3.5 text-accent" />
+              </div>
+              <div>
+                <div className="text-sm font-semibold tracking-tight">Ring i dag</div>
+                <div className="text-xs text-fg-muted">
+                  {(data?.ringeliste ?? []).length} varme leads — prioritert etter status
+                </div>
+              </div>
+            </div>
+            <Link href={"/command" as "/dashboard"} className="text-xs text-accent hover:underline flex items-center gap-1">
+              Se alle leads <ArrowRight className="size-3" />
+            </Link>
+          </div>
+          <div className="grid grid-cols-4 gap-3">
+            {(data?.ringeliste ?? []).map((lead, i) => (
+              <RingLeadCard key={lead.id} lead={lead} rank={i + 1} />
+            ))}
+          </div>
         </div>
       )}
 
@@ -607,6 +648,76 @@ function KpiCard({
   );
   if (href) return <Link href={href as "/dashboard"}>{inner}</Link>;
   return inner;
+}
+
+const STATUS_LABELS: Record<string, { label: string; color: string; dot: string }> = {
+  replied:    { label: "Svarte",     color: "text-accent",      dot: "bg-accent" },
+  interested: { label: "Interessert", color: "text-yellow-500",  dot: "bg-yellow-500" },
+  contacted:  { label: "Kontaktet",  color: "text-blue-400",    dot: "bg-blue-400" },
+  new:        { label: "Ny",         color: "text-fg-muted",    dot: "bg-fg-subtle" },
+};
+
+function RingLeadCard({ lead, rank }: { lead: RingLead; rank: number }) {
+  const s = STATUS_LABELS[lead.status] ?? { label: lead.status, color: "text-fg-muted", dot: "bg-fg-subtle" };
+  const isHot = lead.status === "replied" || lead.status === "interested";
+
+  return (
+    <div className={cn(
+      "rounded-xl border p-4 flex flex-col gap-3 transition-all",
+      isHot ? "border-accent/30 bg-accent/4" : "border-border bg-bg-surface"
+    )}>
+      {/* Rank + status */}
+      <div className="flex items-center justify-between">
+        <span className={cn(
+          "text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center",
+          isHot ? "bg-accent/15 text-accent" : "bg-bg-elevated text-fg-muted"
+        )}>
+          {rank}
+        </span>
+        <div className="flex items-center gap-1">
+          <span className={cn("size-1.5 rounded-full", s.dot)} />
+          <span className={cn("text-xs font-medium", s.color)}>{s.label}</span>
+        </div>
+      </div>
+
+      {/* Name */}
+      <div>
+        <div className="text-sm font-semibold leading-tight line-clamp-1">
+          {lead.companyName}
+        </div>
+        {(lead.specialty || lead.location) && (
+          <div className="flex items-center gap-1 mt-0.5 text-xs text-fg-subtle">
+            {lead.location && <><MapPin className="size-2.5" /><span className="truncate">{lead.location}</span></>}
+            {lead.specialty && lead.location && <span>·</span>}
+            {lead.specialty && <span className="truncate">{lead.specialty}</span>}
+          </div>
+        )}
+      </div>
+
+      {/* Phone / contact */}
+      <div className="mt-auto">
+        {lead.phone ? (
+          <a
+            href={`tel:${lead.phone.replace(/\s/g, "")}`}
+            className={cn(
+              "flex items-center gap-1.5 text-xs font-medium rounded-lg px-3 py-2 w-full justify-center transition-colors",
+              isHot
+                ? "bg-accent text-white hover:bg-accent/90"
+                : "bg-bg-elevated text-fg-muted hover:text-fg hover:bg-border"
+            )}
+          >
+            <Phone className="size-3" />
+            {lead.phone}
+          </a>
+        ) : (
+          <div className="text-xs text-fg-subtle text-center py-1">Intet telefonnr.</div>
+        )}
+        {lead.contactName && (
+          <div className="text-xs text-fg-subtle text-center mt-1 truncate">{lead.contactName}</div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function PipelineRow({
