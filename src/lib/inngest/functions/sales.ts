@@ -6,7 +6,7 @@ import { RexAgent } from "@/lib/agents/sales";
 import { appendMemory } from "@/lib/tools/memory";
 import { notifyMarkus } from "@/lib/tools/notify";
 import { db, schema } from "@/lib/db";
-import { and, eq, lte, inArray } from "drizzle-orm";
+import { and, eq, lte, inArray, desc, or } from "drizzle-orm";
 import { DEFAULT_ORG_ID } from "@/lib/db/constants";
 
 const titan = new TitanAgent();
@@ -195,6 +195,100 @@ export const titanVurdererNoReply = inngest.createFunction(
 
     await step.run("lagre-kjøring", () => persistRun(output, "event"));
     return { runId, vurdering: output.summary, usage: output.usage, logs };
+  }
+);
+
+// ─── Titan — daglig ringeliste (hverdager 08:00) ──────────────────────────
+// Henter de 4 heteste leadene og sender e-post til Markus
+
+export const titanRingListe = inngest.createFunction(
+  { id: "titan-ringeliste", name: "Titan · Daglig ringeliste", retries: 1 },
+  { cron: "0 6 * * 1-5" }, // 06:00 UTC = 08:00 norsk
+  async ({ step }) => {
+    // Hent hot leads fra DB (replied og interested øverst, deretter contacted)
+    const hotLeads = await step.run("hent-hot-leads", () =>
+      db.query.leads.findMany({
+        where: and(
+          eq(schema.leads.orgId, DEFAULT_ORG_ID),
+          or(
+            eq(schema.leads.status, "replied"),
+            eq(schema.leads.status, "interested"),
+            eq(schema.leads.status, "contacted"),
+            eq(schema.leads.status, "new")
+          )
+        ),
+        orderBy: [desc(schema.leads.updatedAt)],
+        limit: 20,
+      })
+    );
+
+    if (hotLeads.length === 0) {
+      await step.run("ingen-leads", () =>
+        notifyMarkus({
+          subject: "📋 Ringeliste – ingen aktive leads i dag",
+          agentName: "Titan",
+          agentColor: "#f59e0b",
+          body: "Pipelinen er tom. Nova må finne nye prospekter.",
+        })
+      );
+      return { sent: 0 };
+    }
+
+    // Sorter: replied og interested øverst
+    const priorityOrder: Record<string, number> = {
+      replied: 0,
+      interested: 1,
+      contacted: 2,
+      new: 3,
+    };
+    const sorted = [...hotLeads].sort(
+      (a, b) => (priorityOrder[a.status] ?? 9) - (priorityOrder[b.status] ?? 9)
+    );
+    const top4 = sorted.slice(0, 4);
+
+    // Bygg e-post
+    const statusLabel: Record<string, string> = {
+      replied: "✅ Har svart",
+      interested: "🔥 Interessert",
+      contacted: "📨 Kontaktet",
+      new: "🆕 Ny",
+    };
+
+    const listeHtml = top4
+      .map((l, i) => {
+        const tlf = l.phone ? `<a href="tel:${l.phone}" style="color:#f59e0b;">${l.phone}</a>` : "Ingen tlf";
+        const status = statusLabel[l.status] ?? l.status;
+        return `
+          <div style="border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin-bottom:12px;">
+            <div style="font-size:18px;font-weight:700;color:#111;">${i + 1}. ${l.companyName}</div>
+            <div style="font-size:13px;color:#666;margin-top:4px;">${l.specialty ?? ""} ${l.location ? `· ${l.location}` : ""}</div>
+            <div style="margin-top:10px;display:flex;gap:16px;align-items:center;">
+              <span style="font-size:13px;background:#fef3c7;color:#92400e;padding:4px 10px;border-radius:12px;">${status}</span>
+              <span style="font-size:15px;font-weight:600;">${tlf}</span>
+            </div>
+            ${l.email ? `<div style="font-size:12px;color:#999;margin-top:6px;">${l.email}</div>` : ""}
+          </div>`;
+      })
+      .join("");
+
+    const body = top4
+      .map((l, i) =>
+        `${i + 1}. ${l.companyName} — ${statusLabel[l.status] ?? l.status} — ${l.phone ?? "ingen tlf"}`
+      )
+      .join("\n");
+
+    await step.run("send-ringeliste", () =>
+      notifyMarkus({
+        subject: `📞 Ring i dag — ${top4.length} varme leads (${dagsDato()})`,
+        agentName: "Titan",
+        agentColor: "#f59e0b",
+        body,
+        ctaLabel: "Se pipeline",
+        ctaUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? "https://agentimperie.vercel.app"}/leads`,
+      })
+    );
+
+    return { sendt: top4.length, leads: top4.map((l) => l.companyName) };
   }
 );
 

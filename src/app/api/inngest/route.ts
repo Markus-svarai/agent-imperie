@@ -29,6 +29,7 @@ import {
   titanDagligOppfolging, titanOppfolgingEtterHermes, titanReagerPaaSvar,
   pulsePipelineHygiene, rexUkesanalyse,
   noReplyTimeout, titanVurdererNoReply,
+  titanRingListe,
 } from "@/lib/inngest/functions/sales";
 
 // Varsler
@@ -66,6 +67,7 @@ export const { GET, POST, PUT } = serve({
     titanDagligOppfolging, titanOppfolgingEtterHermes, titanReagerPaaSvar,
     pulsePipelineHygiene, rexUkesanalyse,
     noReplyTimeout, titanVurdererNoReply,
+    titanRingListe,
 
     // ── Varsler & generelt ───────────────────────────────────────────────
     dailyDigest, dealClosedVarsling, onFunctionFailed,
