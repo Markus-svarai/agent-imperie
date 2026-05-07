@@ -23,7 +23,7 @@ import {
 // Sales – finn, analyser og kontakt klinikker
 import { novaProspektering } from "@/lib/inngest/functions/nova";
 import {
-  hermesSkrivMeldinger, hermesManuelOpdrag, hermesLaererAvScribe,
+  hermesSkrivMeldinger, hermesManuelOpdrag, hermesLaererAvScribe, hermesSendOppfolger,
 } from "@/lib/inngest/functions/hermes";
 import {
   titanDagligOppfolging, titanOppfolgingEtterHermes, titanReagerPaaSvar,
@@ -63,7 +63,7 @@ export const { GET, POST, PUT } = serve({
 
     // ── Sales pipeline ───────────────────────────────────────────────────
     novaProspektering,
-    hermesSkrivMeldinger, hermesManuelOpdrag, hermesLaererAvScribe,
+    hermesSkrivMeldinger, hermesManuelOpdrag, hermesLaererAvScribe, hermesSendOppfolger,
     titanDagligOppfolging, titanOppfolgingEtterHermes, titanReagerPaaSvar,
     pulsePipelineHygiene, rexUkesanalyse,
     noReplyTimeout, titanVurdererNoReply,

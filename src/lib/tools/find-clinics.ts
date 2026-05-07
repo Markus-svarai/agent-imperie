@@ -90,21 +90,27 @@ export async function storeLead(lead: ClinicLead): Promise<string> {
  * Ekskluderer leads kontaktet de siste 5 dagene som sikkerhetsventil
  * hvis status ikke ble oppdatert korrekt etter forrige sending. */
 export async function getNewLeads(limit = 10) {
-  const fiveDaysAgo = new Date();
-  fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
-
   return db.query.leads.findMany({
     where: and(
       eq(schema.leads.orgId, DEFAULT_ORG_ID),
       eq(schema.leads.status, "new"),
-      // Sikkerhetsventil: ikke kontakt noen som har fått mail siste 5 dager
-      // selv om status av en eller annen grunn ikke er oppdatert
-      or(
-        isNull(schema.leads.lastContactedAt),
-        lte(schema.leads.lastContactedAt, fiveDaysAgo)
-      )
+      // Aldri kontakt leads som allerede har fått e-post
+      eq(schema.leads.outreachCount, 0),
     ),
     orderBy: (leads, { desc }) => [desc(leads.fitScore)],
+    limit,
+  });
+}
+
+/** Leads som har fått første e-post men ikke oppfølger ennå */
+export async function getLeadsForFollowUp(limit = 10) {
+  return db.query.leads.findMany({
+    where: and(
+      eq(schema.leads.orgId, DEFAULT_ORG_ID),
+      eq(schema.leads.status, "contacted"),
+      eq(schema.leads.outreachCount, 1),
+    ),
+    orderBy: (leads, { asc }) => [asc(leads.lastContactedAt)],
     limit,
   });
 }

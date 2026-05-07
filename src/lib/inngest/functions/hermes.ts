@@ -94,6 +94,40 @@ export const hermesManuelOpdrag = inngest.createFunction(
   }
 );
 
+// ─── Hermes sender oppfølger (trigges av Titan neste mandag) ─────────────────
+
+export const hermesSendOppfolger = inngest.createFunction(
+  { id: "hermes-send-oppfolger", name: "Hermes · Send oppfølger (neste mandag)", retries: 2 },
+  { event: "hermes/send-followup" },
+  async ({ event, step }) => {
+    const { ctx, runId, logs, persistRun, isHalted } = makeCtx("hermes");
+    if (await step.run("sjekk-kill-switch", isHalted)) return { skipped: true };
+
+    const output = await step.run("hermes-oppfolger", () =>
+      hermes.run(
+        { message: `Det er mandag. Send oppfølger til leads som fikk første e-post forrige uke og ikke har svart. Bruk get_pending_followup. Husk: maks 3 setninger + CTA, henvis til forrige e-post.` },
+        ctx
+      )
+    );
+
+    await step.run("lagre-kjøring", () => persistRun(output, "event"));
+
+    await step.run("varsle-markus", () =>
+      notifyMarkus({
+        subject: `Hermes har sendt oppfølger-e-poster`,
+        agentName: "Hermes",
+        agentColor: "#22c55e",
+        body: output.summary,
+        runId,
+        ctaLabel: "Se kjøringen",
+        ctaUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? "https://agentimperie.vercel.app"}/runs`,
+      })
+    );
+
+    return { runId, meldinger: output.summary, usage: output.usage, logs };
+  }
+);
+
 // ─── Scribe-funn → Hermes-hukommelse ─────────────────────────────────────────
 // Når Scribe identifiserer mønstre om hva slags klinikker som svarer,
 // oppdaterer vi Hermes sin hukommelse så outreach forbedres over tid.

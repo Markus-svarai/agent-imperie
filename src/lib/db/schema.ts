@@ -324,6 +324,9 @@ export const leads = pgTable(
     notes: text("notes"),
     fitScore: integer("fit_score"),
     lastContactedAt: timestamp("last_contacted_at"),
+    outreachCount: integer("outreach_count").notNull().default(0),
+    calledAt: timestamp("called_at"),            // satt av Markus etter manuell ring
+    followUpScheduledAt: timestamp("follow_up_scheduled_at"), // når oppfølger skal sendes
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },

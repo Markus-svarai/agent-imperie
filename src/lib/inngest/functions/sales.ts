@@ -35,27 +35,42 @@ export const titanDagligOppfolging = inngest.createFunction(
   }
 );
 
-// Titan aktiveres når Hermes har sendt outreach
+// ─── Hjelpefunksjon: neste mandag kl. 09:00 norsk ────────────────────────
+function nesteMandag(): Date {
+  const now = new Date();
+  // Konverter til norsk tid (UTC+1/+2) for korrekt dagberegning
+  const dag = now.getUTCDay(); // 0=søn, 1=man, ..., 6=lør
+  const dagerTilMandag = dag === 1 ? 7 : (8 - dag) % 7; // aldri 0 — alltid fremover
+  const mandag = new Date(now);
+  mandag.setUTCDate(now.getUTCDate() + dagerTilMandag);
+  mandag.setUTCHours(7, 0, 0, 0); // 07:00 UTC = 09:00 norsk (sommertid)
+  return mandag;
+}
+
+// Titan aktiveres når Hermes har sendt outreach — planlegger oppfølger til neste mandag
 export const titanOppfolgingEtterHermes = inngest.createFunction(
-  { id: "titan-etter-hermes", name: "Titan · Oppfølging etter outreach", retries: 1 },
+  { id: "titan-etter-hermes", name: "Titan · Planlegg oppfølger til neste mandag", retries: 1 },
   { event: "hermes/outreach.sent" },
   async ({ event, step }) => {
-    const p = safePayload(event.data, ["hermesRunId", "mottakere"]);
-    const { ctx, runId, logs, persistRun, isHalted } = makeCtx("titan", p.hermesRunId ?? undefined);
+    const p = safePayload(event.data, ["hermesRunId", "mottakere", "leadIds"]);
+    const { isHalted } = makeCtx("titan", p.hermesRunId ?? undefined);
     if (await step.run("sjekk-kill-switch", isHalted)) return { skipped: true };
 
-    const mottakere = p.mottakere ?? "(ingen liste)";
-    const output = await step.run("titan-planlegger-oppfolging", () =>
-      titan.run(
-        {
-          message: `Hermes har sendt outreach til følgende prospects:\n\n${mottakere}\n\nLag en 7-dagers oppfølgingssekvens for disse.`,
-        },
-        ctx
-      )
-    );
-    await step.run("lagre-kjøring", () => persistRun(output));
+    // Sov til neste mandag kl. 09:00 norsk
+    const sendTidspunkt = nesteMandag();
+    await step.sleepUntil("vent-til-mandag", sendTidspunkt);
 
-    return { runId, sekvens: output.summary, artifacts: output.artifacts, usage: output.usage, logs };
+    // Send event til Hermes om å sende oppfølger
+    await step.sendEvent("trigger-hermes-oppfolger", {
+      name: "hermes/send-followup",
+      data: {
+        mottakere: p.mottakere ?? "",
+        leadIds: p.leadIds ?? [],
+        scheduledFor: sendTidspunkt.toISOString(),
+      },
+    });
+
+    return { scheduledFor: sendTidspunkt.toISOString(), mottakere: p.mottakere };
   }
 );
 

@@ -6,7 +6,7 @@ import {
   LayoutDashboard,
   MessageSquare,
   Activity,
-  FileText,
+  Phone,
   ClipboardList,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -14,9 +14,9 @@ import { cn } from "@/lib/utils";
 const NAV = [
   { href: "/dashboard", label: "Oversikt",  icon: LayoutDashboard },
   { href: "/brief",     label: "Brief",     icon: ClipboardList },
+  { href: "/ringer",    label: "Ringer",    icon: Phone },
   { href: "/command",   label: "Kommando",  icon: MessageSquare },
   { href: "/runs",      label: "Kjøringer", icon: Activity },
-  { href: "/artifacts", label: "Resultater",icon: FileText },
 ];
 
 export function MobileNav() {

@@ -6,7 +6,7 @@
  */
 
 import { db, schema } from "@/lib/db";
-import { eq, and, gte, count, sql } from "drizzle-orm";
+import { eq, and, gte, count, sql, lte } from "drizzle-orm";
 import { DEFAULT_ORG_ID } from "@/lib/db/constants";
 
 const DAILY_OUTREACH_LIMIT = Number(process.env.DAILY_OUTREACH_LIMIT ?? "10");
@@ -137,12 +137,13 @@ export async function sendOutreachEmail(
       sentAt: now,
     });
 
-    // Oppdater lastContactedAt alltid — selv uten leadId i input.
+    // Oppdater lastContactedAt + inkrementer outreachCount.
     if (resolvedLeadId) {
       await db
         .update(schema.leads)
         .set({
           lastContactedAt: now,
+          outreachCount: sql`${schema.leads.outreachCount} + 1`,
           status: sql`CASE WHEN ${schema.leads.status} = 'new' THEN 'contacted' ELSE ${schema.leads.status} END`,
           updatedAt: now,
         })
