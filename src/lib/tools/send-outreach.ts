@@ -69,7 +69,7 @@ export async function sendOutreachEmail(
 
   try {
     // Build HTML email
-    const html = buildOutreachHtml(input.body, CALENDLY_LINK);
+    const html = buildOutreachHtml(input.body);
 
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -194,7 +194,7 @@ export async function getRepliedLeads() {
   });
 }
 
-function buildOutreachHtml(body: string, calendlyLink: string): string {
+function buildOutreachHtml(body: string): string {
   const paragraphs = body
     .split("\n")
     .filter((p) => p.trim())
@@ -207,10 +207,6 @@ function buildOutreachHtml(body: string, calendlyLink: string): string {
 <body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1a1a1a;background:#fff;">
   <div style="max-width:600px;margin:40px auto;padding:0 24px;">
     ${paragraphs}
-    <div style="margin-top:24px;padding:16px 20px;background:#f8f8f8;border-radius:8px;border-left:3px solid #0066cc;">
-      <p style="margin:0 0 8px;font-size:14px;color:#555;">Vil du se SvarAI i aksjon?</p>
-      <a href="${calendlyLink}" style="display:inline-block;padding:10px 20px;background:#0066cc;color:#fff;text-decoration:none;border-radius:6px;font-size:14px;font-weight:500;">Book en gratis demo →</a>
-    </div>
     <div style="margin-top:32px;padding-top:24px;border-top:1px solid #eee;font-size:12px;color:#999;">
       <p style="margin:0;">SvarAI · AI-resepsjonist for norske klinikker</p>
       <p style="margin:4px 0 0;"><a href="https://svarai.no" style="color:#0066cc;">svarai.no</a> · Svarer på hei@svarai.no</p>

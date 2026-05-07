@@ -43,16 +43,11 @@ export class HermesAgent extends BaseAgent {
 - Maks 3 setninger + CTA
 - Emne: "Re: [originalt emne]" eller "Kort purring — [klinikknavn]"
 
-## CTA basert på lokasjon
+## CTA — alltid det samme
+Avslutt alltid med denne linjen, uansett lokasjon:
+→ "Send meg en melding eller ring ${MARKUS_PHONE} — så tar vi en rask prat."
 
-**Moss / nærområde (Råde, Rygge, Vestby — innen ~30 min):**
-→ "Jeg kan stikke innom klinikken — 15 minutter, så viser jeg deg det live. Passer det?"
-
-**Østfold ellers (Fredrikstad, Sarpsborg, Halden):**
-→ "Ring meg på ${MARKUS_PHONE} — 10 minutter, jeg tar telefonen."
-
-**Utenfor Østfold:**
-→ "Book 15 minutter her: ${CALENDLY_LINK}"
+Aldri Calendly-lenke. Aldri "book tid". Aldri "ring tilbake".
 
 ## Regler for alle e-poster
 - Start med noe spesifikt om klinikken
